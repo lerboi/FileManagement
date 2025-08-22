@@ -163,7 +163,7 @@ Provide mapping suggestions for each placeholder as a JSON array.`
 
     try {
       const response = await mistral.chat.complete({
-        model: "mistral-large-latest",
+        model: "mistral-small-2506",
         messages: [
           {
             role: "system",
