@@ -1,7 +1,8 @@
-// src/components/templates/TemplateEditor.js
+// src/components/templates/TemplateEditor.js (Unified Interaction Mode)
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import DynamicFieldSelector from './DynamicFieldSelector'
 
 export default function TemplateEditor({ 
   template, 
@@ -13,31 +14,52 @@ export default function TemplateEditor({
   const [aiProcessing, setAiProcessing] = useState(false)
   const [selectedText, setSelectedText] = useState('')
   const [clickPosition, setClickPosition] = useState(null)
-  const [selectionMode, setSelectionMode] = useState('highlight') // 'highlight' or 'click'
   const [showFieldSelector, setShowFieldSelector] = useState(false)
+  const [interactionMode, setInteractionMode] = useState(null) // 'highlight' or 'click' - auto-detected
   const [changes, setChanges] = useState([])
+  const [fieldValidation, setFieldValidation] = useState(null)
+  const [availableFields, setAvailableFields] = useState([])
   const editorRef = useRef(null)
 
-  const availableFields = [
-    { name: 'first_name', label: 'First Name' },
-    { name: 'last_name', label: 'Last Name' },
-    { name: 'full_name', label: 'Full Name', computed: true },
-    { name: 'email', label: 'Email' },
-    { name: 'phone', label: 'Phone' },
-    { name: 'address_line_1', label: 'Address Line 1' },
-    { name: 'address_line_2', label: 'Address Line 2' },
-    { name: 'city', label: 'City' },
-    { name: 'state', label: 'State' },
-    { name: 'postal_code', label: 'Postal Code' },
-    { name: 'country', label: 'Country' },
-    { name: 'date_of_birth', label: 'Date of Birth' },
-    { name: 'occupation', label: 'Occupation' },
-    { name: 'company', label: 'Company' },
-    { name: 'current_date', label: 'Current Date', computed: true },
-    { name: 'current_year', label: 'Current Year', computed: true }
-  ]
+  console.log(fieldValidation)
 
-  // Add styles for field placeholders and click indicators
+  useEffect(() => {
+    fetchAvailableFields()
+    if (template?.field_mappings) {
+      validateCurrentMappings()
+    }
+  }, [template])
+
+  const fetchAvailableFields = async () => {
+    try {
+      const response = await fetch('/api/fields/schema')
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableFields(data.fields || [])
+      }
+    } catch (error) {
+      console.error('Error fetching fields:', error)
+    }
+  }
+
+  const validateCurrentMappings = async () => {
+    try {
+      const response = await fetch('/api/fields/schema', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fieldMappings: template.field_mappings || {} })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setFieldValidation(data.validation)
+      }
+    } catch (error) {
+      console.error('Error validating field mappings:', error)
+    }
+  }
+
+  // Add styles for field placeholders and validation warnings
   useEffect(() => {
     const styleElement = document.createElement('style')
     styleElement.textContent = `
@@ -52,58 +74,94 @@ export default function TemplateEditor({
         cursor: pointer !important;
       }
       
+      .field-placeholder.invalid {
+        background-color: #fee2e2 !important;
+        border-color: #dc2626 !important;
+        color: #dc2626 !important;
+      }
+      
       .field-placeholder:hover {
         background-color: #fde68a !important;
         border-color: #d97706 !important;
       }
       
-      .click-indicator {
-        position: absolute;
-        width: 2px;
-        height: 20px;
-        background-color: #3b82f6;
-        animation: blink 1s infinite;
-        pointer-events: none;
-        z-index: 1000;
-      }
-      
-      @keyframes blink {
-        0%, 50% { opacity: 1; }
-        51%, 100% { opacity: 0; }
-      }
-      
-      .selection-highlight {
-        background-color: #dbeafe !important;
-        border: 1px dashed #3b82f6 !important;
+      .field-placeholder.invalid:hover {
+        background-color: #fecaca !important;
+        border-color: #b91c1c !important;
       }
       
       .editor-content {
         position: relative;
+        cursor: text;
       }
       
-      .editor-content.click-mode {
-        cursor: text !important;
+      .editor-content * {
+        cursor: text;
       }
       
-      .editor-content.click-mode * {
-        cursor: text !important;
+      .validation-warning {
+        background-color: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 4px;
+        padding: 8px;
+        margin: 4px 0;
+      }
+      
+      .validation-error {
+        background-color: #fee2e2;
+        border: 1px solid #dc2626;
+        border-radius: 4px;
+        padding: 8px;
+        margin: 4px 0;
+      }
+
+      .field-selector-overlay {
+        position: absolute;
+        z-index: 1000;
+        min-width: 320px;
+        max-width: 400px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        border: 1px solid #e5e7eb;
       }
     `
     document.head.appendChild(styleElement)
     
     return () => {
-      document.head.removeChild(styleElement)
+      if (document.head.contains(styleElement)) {
+        document.head.removeChild(styleElement)
+      }
     }
   }, [])
 
   // Update the HTML content in the editor when htmlContent changes
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== htmlContent) {
-      // Only update if the content is actually different
       console.log('Updating editor content')
       editorRef.current.innerHTML = htmlContent
+      highlightInvalidFields()
     }
-  }, [htmlContent])
+  }, [htmlContent, fieldValidation])
+
+  // Highlight invalid field placeholders
+  const highlightInvalidFields = () => {
+    if (!fieldValidation || !editorRef.current) return
+
+    const placeholders = editorRef.current.querySelectorAll('.field-placeholder')
+    placeholders.forEach(placeholder => {
+      const fieldName = placeholder.getAttribute('data-field')
+      const isInvalid = fieldValidation.invalidMappings.some(im => im.fieldName === fieldName)
+      
+      if (isInvalid) {
+        placeholder.classList.add('invalid')
+        placeholder.title = `Invalid field: ${fieldName} no longer exists in schema`
+      } else {
+        placeholder.classList.remove('invalid')
+        placeholder.title = `Field: ${fieldName}`
+      }
+    })
+  }
 
   // Sync HTML content with DOM changes
   const syncHtmlContent = () => {
@@ -140,6 +198,10 @@ export default function TemplateEditor({
       if (result.success) {
         setHtmlContent(result.enhancedHtml)
         setChanges(result.changes)
+        
+        // Re-validate mappings after AI enhancement
+        await validateCurrentMappings()
+        
         alert(`Mistral AI added ${result.fieldCount} field placeholders. Review the changes in the preview.`)
       } else {
         throw new Error(result.error)
@@ -153,63 +215,61 @@ export default function TemplateEditor({
     }
   }
 
-  const handleTextSelection = () => {
-    if (selectionMode !== 'highlight') return
-
-    const selection = window.getSelection()
-    if (selection.rangeCount > 0 && selection.toString().trim()) {
-      setSelectedText(selection.toString().trim())
-      setClickPosition(null)
-      setShowFieldSelector(true)
-    }
-  }
-
-  const handleClick = (e) => {
-    if (selectionMode !== 'click') return
-
+  // Unified interaction handler that detects user intent
+  const handleEditorInteraction = (e) => {
     // Don't interfere with placeholder clicks
     if (e.target.classList.contains('field-placeholder')) {
       return
     }
 
-    e.preventDefault()
-    e.stopPropagation()
+    // Check if user made a text selection
+    const selection = window.getSelection()
+    const hasTextSelection = selection.rangeCount > 0 && selection.toString().trim().length > 0
 
-    // Clear any existing selection
-    window.getSelection().removeAllRanges()
-    setSelectedText('')
-
-    // Get the click position and create a range
-    let range
-    if (document.caretRangeFromPoint) {
-      range = document.caretRangeFromPoint(e.clientX, e.clientY)
-    } else if (document.caretPositionFromPoint) {
-      const caretPos = document.caretPositionFromPoint(e.clientX, e.clientY)
-      range = document.createRange()
-      range.setStart(caretPos.offsetNode, caretPos.offset)
-      range.collapse(true)
-    }
-
-    if (range) {
-      // Store the range for field insertion
-      setClickPosition({
-        range: range.cloneRange(),
-        textNode: range.startContainer,
-        offset: range.startOffset
-      })
+    if (hasTextSelection) {
+      // User highlighted text - use highlight mode
+      setInteractionMode('highlight')
+      setSelectedText(selection.toString().trim())
+      setClickPosition(null)
       setShowFieldSelector(true)
+    } else if (e.type === 'click') {
+      // User clicked without selection - use click mode
+      setInteractionMode('click')
+      setSelectedText('')
+      
+      // Get the click position and create a range
+      let range
+      if (document.caretRangeFromPoint) {
+        range = document.caretRangeFromPoint(e.clientX, e.clientY)
+      } else if (document.caretPositionFromPoint) {
+        const caretPos = document.caretPositionFromPoint(e.clientX, e.clientY)
+        range = document.createRange()
+        range.setStart(caretPos.offsetNode, caretPos.offset)
+        range.collapse(true)
+      }
 
-      // Set the cursor position visually
-      const selection = window.getSelection()
-      selection.removeAllRanges()
-      selection.addRange(range)
+      if (range) {
+        setClickPosition({
+          range: range.cloneRange(),
+          textNode: range.startContainer,
+          offset: range.startOffset,
+          x: e.clientX,
+          y: e.clientY
+        })
+        setShowFieldSelector(true)
+
+        // Set the cursor position visually
+        const newSelection = window.getSelection()
+        newSelection.removeAllRanges()
+        newSelection.addRange(range)
+      }
     }
   }
 
   const handleFieldMapping = (fieldName) => {
-    if (selectionMode === 'highlight' && selectedText) {
+    if (interactionMode === 'highlight' && selectedText) {
       handleHighlightFieldMapping(fieldName)
-    } else if (selectionMode === 'click' && clickPosition) {
+    } else if (interactionMode === 'click' && clickPosition) {
       handleClickFieldMapping(fieldName)
     }
   }
@@ -221,53 +281,31 @@ export default function TemplateEditor({
     if (selection.rangeCount === 0) return
 
     const range = selection.getRangeAt(0)
-    
-    // Store the current selection details before we modify anything
-    const startContainer = range.startContainer
-    const startOffset = range.startOffset
-    const endContainer = range.endContainer
-    const endOffset = range.endOffset
-    
-    console.log('Highlight mapping:', {
-      selectedText,
-      fieldName,
-      startContainer: startContainer.nodeType === Node.TEXT_NODE ? startContainer.textContent : startContainer.tagName,
-      startOffset,
-      endContainer: endContainer.nodeType === Node.TEXT_NODE ? endContainer.textContent : endContainer.tagName,
-      endOffset
-    })
-    
     const placeholder = `<span class="field-placeholder" data-field="${fieldName}" title="Field: ${fieldName}">{{${fieldName}}}</span>`
     
     try {
-      // Create the placeholder element
       const tempDiv = document.createElement('div')
       tempDiv.innerHTML = placeholder
       const placeholderNode = tempDiv.firstChild
 
-      // Replace the selected content with the placeholder
       range.deleteContents()
       range.insertNode(placeholderNode)
       
-      // Clear the selection
       selection.removeAllRanges()
       
-      // Update our state
+      // Store the change for tracking purposes (field name only)
       setChanges(prev => [...prev, {
         field: fieldName,
         originalText: selectedText,
-        placeholder,
+        placeholder: `{{${fieldName}}}`, // Store simple placeholder, not HTML
         type: 'highlight'
       }])
-      
-      console.log('Highlight mapping completed successfully')
       
     } catch (error) {
       console.error('Error replacing selected text:', error)
     }
     
-    setSelectedText('')
-    setShowFieldSelector(false)
+    closeFieldSelector()
   }
 
   const handleClickFieldMapping = (fieldName) => {
@@ -275,107 +313,55 @@ export default function TemplateEditor({
 
     const placeholder = `<span class="field-placeholder" data-field="${fieldName}" title="Field: ${fieldName}">{{${fieldName}}}</span>`
     
-    console.log('Click mapping:', {
-      fieldName,
-      hasRange: !!clickPosition.range,
-      textNode: clickPosition.textNode,
-      offset: clickPosition.offset
-    })
-    
     try {
-      // Get the current selection/cursor position
       const selection = window.getSelection()
-      let range
+      let range = selection.rangeCount > 0 ? selection.getRangeAt(0) : clickPosition.range
       
-      if (selection.rangeCount > 0) {
-        range = selection.getRangeAt(0)
-      } else {
-        range = clickPosition.range
-      }
-      
-      console.log('Using range:', {
-        startContainer: range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.textContent : range.startContainer.tagName,
-        startOffset: range.startOffset,
-        collapsed: range.collapsed
-      })
-      
-      // Create the placeholder element
       const tempDiv = document.createElement('div')
       tempDiv.innerHTML = placeholder
       const placeholderNode = tempDiv.firstChild
 
-      // Ensure the range is collapsed (cursor position, not selection)
       range.collapse(true)
-      
-      // Insert the placeholder at the cursor position
       range.insertNode(placeholderNode)
       
-      // Move the cursor after the inserted placeholder
       range.setStartAfter(placeholderNode)
       range.collapse(true)
       
-      // Update the selection
       selection.removeAllRanges()
       selection.addRange(range)
       
+      // Store the change for tracking purposes (field name only)
       setChanges(prev => [...prev, {
         field: fieldName,
         originalText: `[Inserted at cursor position]`,
-        placeholder,
+        placeholder: `{{${fieldName}}}`, // Store simple placeholder, not HTML
         type: 'click'
       }])
 
-      console.log('Click mapping completed successfully')
-
     } catch (error) {
       console.error('Error inserting field at click position:', error)
-      
-      // Fallback: try to insert at the end of the clicked element
-      try {
-        const tempDiv = document.createElement('div')
-        tempDiv.innerHTML = placeholder
-        const placeholderNode = tempDiv.firstChild
-        
-        if (clickPosition.textNode && clickPosition.textNode.parentNode) {
-          clickPosition.textNode.parentNode.appendChild(placeholderNode)
-        } else {
-          editorRef.current.appendChild(placeholderNode)
-        }
-        
-        console.log('Used fallback insertion method')
-      } catch (fallbackError) {
-        console.error('Fallback insertion also failed:', fallbackError)
-      }
     }
     
-    setClickPosition(null)
+    closeFieldSelector()
+  }
+
+  const closeFieldSelector = () => {
     setShowFieldSelector(false)
+    setSelectedText('')
+    setClickPosition(null)
+    setInteractionMode(null)
   }
 
   const removeFieldMapping = (fieldName) => {
-    console.log('Removing field mapping for:', fieldName)
-    
-    // Find all placeholders with this field name
     const placeholders = editorRef.current.querySelectorAll(`[data-field="${fieldName}"]`)
-    console.log('Found placeholders to remove:', placeholders.length)
     
-    placeholders.forEach((placeholder, index) => {
-      console.log(`Removing placeholder ${index + 1}:`, placeholder.outerHTML)
-      
-      // Simply remove the placeholder element entirely
+    placeholders.forEach((placeholder) => {
       if (placeholder.parentNode) {
         placeholder.parentNode.removeChild(placeholder)
       }
     })
     
-    // Remove from changes list
-    setChanges(prev => {
-      const newChanges = prev.filter(change => change.field !== fieldName)
-      console.log('Updated changes list:', newChanges.length, 'items')
-      return newChanges
-    })
-    
-    console.log('Field mapping removal completed')
+    setChanges(prev => prev.filter(change => change.field !== fieldName))
   }
 
   const handleSave = async () => {
@@ -385,16 +371,52 @@ export default function TemplateEditor({
       // Get the latest HTML from the editor
       const currentHtml = editorRef.current.innerHTML
       
+      // Extract current field mappings from the actual HTML content
+      const currentMappings = {}
+      const placeholderRegex = /\{\{([^}]+)\}\}/g
+      let match
+      
+      while ((match = placeholderRegex.exec(currentHtml)) !== null) {
+        const fieldName = match[1].trim()
+        const placeholder = match[0] // This is just "{{fieldName}}"
+        currentMappings[fieldName] = placeholder
+      }
+      
+      console.log('Current field mappings for validation:', currentMappings)
+      
+      // Validate current field mappings before saving
+      const validationResponse = await fetch('/api/fields/schema', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fieldMappings: currentMappings })
+      })
+      
+      if (validationResponse.ok) {
+        const validationData = await validationResponse.json()
+        console.log('Validation result:', validationData.validation)
+        
+        if (!validationData.validation.valid) {
+          const invalidFields = validationData.validation.invalidMappings.map(im => im.fieldName).join(', ')
+          if (!confirm(`Warning: The following fields are no longer valid: ${invalidFields}. Do you want to continue saving?`)) {
+            return
+          }
+        }
+      }
+      
+      // Build the template data with proper field mappings
+      const templateFieldMappings = {}
+      Object.keys(currentMappings).forEach(fieldName => {
+        templateFieldMappings[fieldName] = `{{${fieldName}}}`
+      })
+      
       const templateData = {
         ...template,
         html_content: currentHtml,
-        field_mappings: changes.reduce((acc, change) => {
-          acc[change.field] = change.placeholder
-          return acc
-        }, {}),
+        field_mappings: templateFieldMappings,
         status: 'active'
       }
 
+      console.log('Saving template with field mappings:', templateFieldMappings)
       await onSave(templateData)
     } catch (error) {
       console.error('Error saving template:', error)
@@ -409,23 +431,51 @@ export default function TemplateEditor({
     return matches ? matches.length : 0
   }
 
-  const toggleSelectionMode = () => {
-    setSelectionMode(prev => prev === 'highlight' ? 'click' : 'highlight')
-    setSelectedText('')
-    setClickPosition(null)
-    setShowFieldSelector(false)
-  }
-
   const handlePlaceholderClick = (e, fieldName) => {
     e.preventDefault()
     e.stopPropagation()
     
-    if (confirm(`Remove field mapping for "${fieldName}"?`)) {
-      removeFieldMapping(fieldName)
+    // Check if this is an invalid field
+    const isInvalid = fieldValidation?.invalidMappings.some(im => im.fieldName === fieldName)
+    
+    if (isInvalid) {
+      if (confirm(`The field "${fieldName}" no longer exists in the schema. Would you like to remove this mapping or replace it with a valid field?`)) {
+        // Show field selector to replace with valid field
+        setInteractionMode('replace')
+        setSelectedText(`{{${fieldName}}}`)
+        setClickPosition({ x: e.clientX, y: e.clientY })
+        setShowFieldSelector(true)
+      }
+    } else {
+      if (confirm(`Remove field mapping for "${fieldName}"?`)) {
+        removeFieldMapping(fieldName)
+      }
     }
   }
 
-  // Add event listeners for placeholder clicks and content changes
+  // Calculate position for field selector overlay
+  const getFieldSelectorPosition = () => {
+    if (!showFieldSelector) return {}
+    
+    if (clickPosition && clickPosition.x && clickPosition.y) {
+      // Position based on click coordinates
+      return {
+        position: 'fixed',
+        left: `${Math.min(clickPosition.x, window.innerWidth - 350)}px`,
+        top: `${Math.min(clickPosition.y + 10, window.innerHeight - 400)}px`,
+      }
+    }
+    
+    // Default position (center of viewport)
+    return {
+      position: 'fixed',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
+    }
+  }
+
+  // Add event listeners
   useEffect(() => {
     const handlePlaceholderClicks = (e) => {
       const target = e.target
@@ -438,24 +488,40 @@ export default function TemplateEditor({
     }
 
     const handleInput = () => {
-      // Sync content after any input changes
       setTimeout(syncHtmlContent, 0)
     }
 
-    if (editorRef.current) {
-      editorRef.current.addEventListener('click', handlePlaceholderClicks)
-      editorRef.current.addEventListener('input', handleInput)
-      
-      return () => {
-        if (editorRef.current) {
-          editorRef.current.removeEventListener('click', handlePlaceholderClicks)
-          editorRef.current.removeEventListener('input', handleInput)
-        }
+    const handleClickOutside = (e) => {
+      // Close field selector if clicking outside
+      if (showFieldSelector && !e.target.closest('.field-selector-overlay') && !e.target.closest('.editor-content')) {
+        closeFieldSelector()
       }
     }
-  }, [])
 
-  // Trigger sync after field operations
+    const handleKeyDown = (e) => {
+      // Close field selector on Escape key
+      if (e.key === 'Escape' && showFieldSelector) {
+        closeFieldSelector()
+      }
+    }
+
+    const currentEditor = editorRef.current
+
+    if (currentEditor) {
+      currentEditor.addEventListener('click', handlePlaceholderClicks)
+      currentEditor.addEventListener('input', handleInput)
+      document.addEventListener('click', handleClickOutside)
+      document.addEventListener('keydown', handleKeyDown)
+      
+      return () => {
+        currentEditor.removeEventListener('click', handlePlaceholderClicks)
+        currentEditor.removeEventListener('input', handleInput)
+        document.removeEventListener('click', handleClickOutside)
+        document.removeEventListener('keydown', handleKeyDown)
+      }
+    }
+  }, [fieldValidation, showFieldSelector])
+
   useEffect(() => {
     syncHtmlContent()
   }, [changes])
@@ -469,9 +535,19 @@ export default function TemplateEditor({
             <h2 className="text-xl font-semibold text-gray-900">
               Template Editor: {template?.name}
             </h2>
-            <p className="text-sm text-gray-600">
-              {getFieldCount()} field placeholders • {changes.length} changes made
-            </p>
+            <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+              <span>{getFieldCount()} field placeholders</span>
+              <span>•</span>
+              <span>{changes.length} changes made</span>
+              {fieldValidation && (
+                <>
+                  <span>•</span>
+                  <span className={fieldValidation.valid ? 'text-green-600' : 'text-red-600'}>
+                    {fieldValidation.validCount} valid, {fieldValidation.invalidCount} invalid
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           <div className="flex items-center space-x-3">
             <button
@@ -511,6 +587,35 @@ export default function TemplateEditor({
             </button>
           </div>
         </div>
+
+        {/* Validation Warnings */}
+        {fieldValidation && !fieldValidation.valid && (
+          <div className="validation-error mt-3">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="font-medium text-red-800">Schema Validation Issues</p>
+                <p className="text-red-700 text-sm">
+                  {fieldValidation.invalidCount} field mappings are no longer valid. 
+                  Click on red-highlighted fields to fix them.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {fieldValidation?.warnings?.length > 0 && (
+          <div className="validation-warning mt-2">
+            <p className="font-medium text-yellow-800">Warnings:</p>
+            <ul className="text-yellow-700 text-sm list-disc list-inside">
+              {fieldValidation.warnings.map((warning, index) => (
+                <li key={index}>{warning.message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
@@ -522,135 +627,86 @@ export default function TemplateEditor({
               <div>
                 <h3 className="text-sm font-medium text-gray-900">Document Preview</h3>
                 <p className="text-xs text-gray-600">
-                  {selectionMode === 'highlight' 
-                    ? 'Select text and map to fields' 
-                    : 'Click to position cursor and insert field placeholders'
-                  }
+                  Click anywhere to insert fields, or select text to replace with fields
                 </p>
               </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={toggleSelectionMode}
-                  className={`px-3 py-1 text-xs rounded border ${
-                    selectionMode === 'highlight'
-                      ? 'bg-blue-50 text-blue-700 border-blue-200'
-                      : 'bg-green-50 text-green-700 border-green-200'
-                  }`}
-                >
-                  {selectionMode === 'highlight' ? 'Highlight Mode' : 'Click Mode'}
-                </button>
+              <div className="text-xs text-gray-500">
+                {interactionMode && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                    {interactionMode === 'highlight' ? 'Replacing selected text' : 
+                     interactionMode === 'click' ? 'Inserting at cursor' : 
+                     'Replacing invalid field'}
+                  </span>
+                )}
               </div>
             </div>
           </div>
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto p-4 relative">
             <div
               ref={editorRef}
-              className={`editor-content bg-white border rounded-lg p-6 shadow-sm min-h-full ${
-                selectionMode === 'click' ? 'click-mode' : ''
-              }`}
+              className="editor-content bg-white border rounded-lg p-6 shadow-sm min-h-full"
               style={{ 
                 fontFamily: 'Times New Roman, serif',
                 fontSize: '12pt',
                 lineHeight: '1.5'
               }}
-              contentEditable={selectionMode === 'click'}
-              onMouseUp={handleTextSelection}
-              onClick={handleClick}
+              contentEditable={true}
+              onMouseUp={handleEditorInteraction}
+              onClick={handleEditorInteraction}
               suppressContentEditableWarning={true}
             />
-            
-            {/* Click indicator */}
-            {clickPosition && selectionMode === 'click' && (
-              <div
-                className="click-indicator"
-                style={{
-                  position: 'fixed',
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: 1001,
-                  pointerEvents: 'none'
-                }}
-              />
+
+            {/* Field Selector Overlay */}
+            {showFieldSelector && (
+              <div 
+                className="field-selector-overlay"
+                style={getFieldSelectorPosition()}
+              >
+                <DynamicFieldSelector
+                  selectedText={selectedText}
+                  clickPosition={clickPosition}
+                  onFieldSelect={handleFieldMapping}
+                  onClose={closeFieldSelector}
+                />
+              </div>
             )}
           </div>
         </div>
 
-        {/* Right Panel - Field Mapping Controls */}
+        {/* Right Panel - Information and Current Mappings */}
         <div className="w-80 bg-gray-50 border-l border-gray-200 flex flex-col">
           <div className="px-4 py-3 border-b border-gray-200">
             <h3 className="text-sm font-medium text-gray-900">Field Mapping</h3>
+            <p className="text-xs text-gray-600 mt-1">
+              Unified interaction - just click or highlight naturally
+            </p>
           </div>
 
           <div className="flex-1 overflow-auto p-4 space-y-4">
-            {/* Mode Instructions */}
+            {/* Instructions */}
             <div className="bg-white border rounded-lg p-3">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Current Mode:</h4>
-              {selectionMode === 'highlight' ? (
-                <div className="text-xs text-gray-600">
-                  <p className="font-medium text-blue-600">Highlight Mode</p>
-                  <p>• Select text by dragging</p>
-                  <p>• Choose a field to replace the text</p>
-                  <p>• Great for replacing existing content</p>
-                </div>
-              ) : (
-                <div className="text-xs text-gray-600">
-                  <p className="font-medium text-green-600">Click Mode</p>
-                  <p>• Click anywhere to place cursor</p>
-                  <p>• Choose a field to insert at that position</p>
-                  <p>• Great for adding new fields</p>
-                </div>
-              )}
+              <h4 className="text-sm font-medium text-gray-900 mb-2">How it works:</h4>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p>• <strong>Select text</strong> → Replace with field</p>
+                <p>• <strong>Click position</strong> → Insert field</p>
+                <p>• <strong>Click yellow fields</strong> → Remove/replace</p>
+                <p>• Fields auto-update with schema changes</p>
+              </div>
             </div>
 
-            {/* Selected Text or Click Position */}
-            {(selectedText || clickPosition) && (
-              <div className="bg-white border rounded-lg p-3">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">
-                  {selectedText ? 'Selected Text:' : 'Insert Position:'}
-                </h4>
+            {/* Current Context */}
+            {(selectedText || clickPosition) && !showFieldSelector && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-blue-900 mb-2">Ready to Map:</h4>
                 {selectedText ? (
-                  <p className="text-sm text-gray-600 bg-yellow-50 p-2 rounded border">
-                    "{selectedText}"
+                  <p className="text-sm text-blue-800 bg-white p-2 rounded border">
+                    Selected: "{selectedText}"
                   </p>
                 ) : (
-                  <p className="text-sm text-gray-600 bg-blue-50 p-2 rounded border">
-                    Ready to insert field at cursor position
+                  <p className="text-sm text-blue-800">
+                    Click position ready for field insertion
                   </p>
                 )}
-                <button
-                  onClick={() => setShowFieldSelector(!showFieldSelector)}
-                  className="mt-2 w-full px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                >
-                  {selectedText ? 'Replace with Field' : 'Insert Field'}
-                </button>
-              </div>
-            )}
-
-            {/* Field Selector */}
-            {showFieldSelector && (
-              <div className="bg-white border rounded-lg p-3">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">Choose Field:</h4>
-                <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {availableFields.map((field) => (
-                    <button
-                      key={field.name}
-                      onClick={() => handleFieldMapping(field.name)}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded border"
-                    >
-                      <div className="font-medium">{field.label}</div>
-                      {field.computed && (
-                        <div className="text-xs text-gray-500">(computed)</div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setShowFieldSelector(false)}
-                  className="mt-2 w-full px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
               </div>
             )}
 
@@ -661,71 +717,74 @@ export default function TemplateEditor({
                   Current Mappings ({changes.length})
                 </h4>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {changes.map((change, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-gray-900 flex items-center">
-                          {change.field}
-                          <span className={`ml-2 px-1 py-0.5 text-xs rounded ${
-                            change.type === 'click' 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {change.type || 'highlight'}
-                          </span>
+                  {changes.map((change, index) => {
+                    const isInvalid = fieldValidation?.invalidMappings.some(im => im.fieldName === change.field)
+                    return (
+                      <div key={index} className={`flex items-center justify-between p-2 rounded ${
+                        isInvalid ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
+                      }`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium text-gray-900 flex items-center">
+                            {change.field}
+                            {isInvalid && (
+                              <span className="ml-2 px-1 py-0.5 text-xs bg-red-100 text-red-700 rounded">
+                                invalid
+                              </span>
+                            )}
+                            <span className={`ml-2 px-1 py-0.5 text-xs rounded ${
+                              change.type === 'click' 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {change.type || 'highlight'}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">
+                            "{change.originalText}"
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500 truncate">
-                          "{change.originalText}"
-                        </div>
+                        <button
+                          onClick={() => removeFieldMapping(change.field)}
+                          className="ml-2 text-red-600 hover:text-red-800"
+                          title="Remove mapping"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
                       </div>
-                      <button
-                        onClick={() => removeFieldMapping(change.field)}
-                        className="ml-2 text-red-600 hover:text-red-800"
-                        title="Remove mapping"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Available Fields Reference */}
+            {/* Field Stats */}
             <div className="bg-white border rounded-lg p-3">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Available Fields:</h4>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {availableFields.map((field) => (
-                  <div key={field.name} className="text-xs">
-                    <span className="font-medium">{field.label}</span>
-                    {field.computed && <span className="text-gray-500"> (computed)</span>}
-                  </div>
-                ))}
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Schema Information</h4>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p>• {availableFields.length} fields available</p>
+                <p>• {availableFields.filter(f => f.computed).length} computed fields</p>
+                <p>• Auto-updates when schema changes</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Instructions Footer */}
+      {/* Footer with Instructions */}
       <div className="flex-shrink-0 bg-blue-50 border-t border-blue-200 px-6 py-3">
-        <div className="flex items-center text-sm text-blue-800">
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-start text-sm text-blue-800">
+          <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div>
-            <strong>Instructions:</strong> Use the mode toggle to switch between highlighting text (replace mode) and clicking positions (insert mode). 
-            Yellow highlighted fields show mapped content. Click on any yellow field to remove it.
+            <p><strong>Smart Interaction:</strong> The editor automatically detects your intent. 
+            Highlight text to replace it with fields, or click anywhere to insert fields at that position. 
+            Yellow highlighted fields show current mappings - click them to modify or remove.</p>
           </div>
         </div>
       </div>
     </div>
   )
-}
-
-// Utility function to escape regex special characters
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
+}` `

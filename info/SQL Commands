@@ -1,0 +1,63 @@
+-- PostgreSQL function to get table schema information
+-- Run this in your Supabase SQL editor
+
+CREATE OR REPLACE FUNCTION get_table_schema(
+  table_name text DEFAULT 'clients',
+  schema_name text DEFAULT 'public'
+)
+RETURNS TABLE (
+  column_name text,
+  data_type text,
+  is_nullable text,
+  column_default text,
+  ordinal_position integer
+)
+LANGUAGE plpgsql
+SECURITY DEFINER -- This allows the function to access system tables
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    c.column_name::text,
+    c.data_type::text,
+    c.is_nullable::text,
+    c.column_default::text,
+    c.ordinal_position::integer
+  FROM information_schema.columns c
+  WHERE c.table_name = get_table_schema.table_name
+    AND c.table_schema = get_table_schema.schema_name
+  ORDER BY c.ordinal_position;
+END;
+$$;
+
+-- Grant execute permission to the authenticated role
+GRANT EXECUTE ON FUNCTION get_table_schema(text, text) TO authenticated;
+
+-- Optional: Create a simpler version that just gets client table info
+CREATE OR REPLACE FUNCTION get_client_schema()
+RETURNS TABLE (
+  column_name text,
+  data_type text,
+  is_nullable text,
+  column_default text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    c.column_name::text,
+    c.data_type::text,
+    c.is_nullable::text,
+    c.column_default::text
+  FROM information_schema.columns c
+  WHERE c.table_name = 'clients'
+    AND c.table_schema = 'public'
+    AND c.column_name NOT IN ('id', 'created_at', 'updated_at') -- Filter out system columns
+  ORDER BY c.ordinal_position;
+END;
+$$;
+
+-- Grant execute permission
+GRANT EXECUTE ON FUNCTION get_client_schema() TO authenticated;
