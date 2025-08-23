@@ -1,6 +1,6 @@
 // src/app/templates/page.js
 'use client'
-
+import TemplateEditorModal from '@/components/templates/TemplateEditorModal'
 import { useState, useEffect } from 'react'
 import TemplateUpload from '@/components/templates/TemplateUpload'
 import TemplateEditor from '@/components/templates/TemplateEditor'
@@ -10,8 +10,6 @@ export default function TemplatesPage() {
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [view, setView] = useState('list') // 'list', 'upload', 'edit'
-  const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
@@ -20,6 +18,8 @@ export default function TemplatesPage() {
   const [editingStatus, setEditingStatus] = useState(null)
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [selectedTemplateForGeneration, setSelectedTemplateForGeneration] = useState(null)
+  const [showEditorModal, setShowEditorModal] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState(null)
 
   useEffect(() => {
     fetchTemplates()
@@ -48,12 +48,18 @@ export default function TemplatesPage() {
   const handleUploadComplete = (template) => {
     setTemplates(prev => [template, ...prev])
     setSelectedTemplate(template)
-    setView('edit')
+    setShowEditorModal(true)
   }
 
   const handleEditTemplate = (template) => {
     setSelectedTemplate(template)
-    setView('edit')
+    setShowEditorModal(true)
+  }
+
+  const handleCloseEditor = () => {
+    setShowEditorModal(false)
+    setSelectedTemplate(null)
+    fetchTemplates() // Refresh templates list
   }
 
   const handleSaveTemplate = async (templateData) => {
@@ -77,7 +83,7 @@ export default function TemplatesPage() {
         t.id === result.template.id ? result.template : t
       ))
       
-      setView('list')
+      setShowEditorModal(false)
       setSelectedTemplate(null)
       
       // Show success message
@@ -198,58 +204,21 @@ export default function TemplatesPage() {
       }
     })
 
-  if (view === 'upload') {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <TemplateUpload
-          onUploadComplete={handleUploadComplete}
-          onCancel={() => setView('list')}
-        />
-      </div>
-    )
-  }
-
-  if (view === 'edit' && selectedTemplate) {
-    return (
-      <TemplateEditor
-        template={selectedTemplate}
-        onSave={handleSaveTemplate}
-        onCancel={() => setView('list')}
-      />
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Document Templates</h1>
-              <p className="text-sm text-gray-600">Manage your contract templates and field mappings</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => window.location.href = '/dashboard'}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                ← Back to Dashboard
-              </button>
-              <button
-                onClick={() => setView('upload')}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Upload Template
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="p-6">
+      {/* Add this after the opening div */}
+      <div className="mb-6 flex justify-end">
+        <button
+          onClick={() => window.location.href = '/templates/upload'}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Upload Template
+        </button>
       </div>
-
+      
       {/* Main Content */}
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         
@@ -394,7 +363,7 @@ export default function TemplatesPage() {
               {!searchTerm && statusFilter === 'all' && (
                 <div className="mt-6">
                   <button
-                    onClick={() => setView('upload')}
+                    onClick={() => window.location.href = '/templates/upload'}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -521,7 +490,7 @@ export default function TemplatesPage() {
                         </svg>
                         <div className="text-sm text-yellow-800">
                           <p className="font-medium">Template needs field mapping</p>
-                          <p>Click "Edit" to map client data fields before activating this template.</p>
+                          <p>Click Edit to map client data fields before activating this template.</p>
                         </div>
                       </div>
                     </div>
@@ -556,7 +525,7 @@ export default function TemplatesPage() {
             </div>
             
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete "<span className="font-medium text-gray-900">{templateToDelete.name}</span>"? 
+              Are you sure you want to delete <span className="font-medium text-gray-900">{templateToDelete.name}</span>? 
               This action cannot be undone and will permanently remove the template and all its field mappings.
             </p>
             
@@ -580,6 +549,14 @@ export default function TemplatesPage() {
           </div>
         </div>
       )}
+
+      {/* Template Editor Modal */}
+      <TemplateEditorModal
+        isOpen={showEditorModal}  
+        template={selectedTemplate}
+        onSave={handleSaveTemplate}
+        onClose={handleCloseEditor}
+      />
     </div>
   )
 }
