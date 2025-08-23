@@ -21,8 +21,6 @@ export default function TemplateEditor({
   const [availableFields, setAvailableFields] = useState([])
   const editorRef = useRef(null)
 
-  console.log(fieldValidation)
-
   useEffect(() => {
     fetchAvailableFields()
     if (template?.field_mappings) {
@@ -372,43 +370,40 @@ export default function TemplateEditor({
       const currentHtml = editorRef.current.innerHTML
       
       // Extract current field mappings from the actual HTML content
-      const currentMappings = {}
+      const templateFieldMappings = {}
       const placeholderRegex = /\{\{([^}]+)\}\}/g
       let match
-      
+
       while ((match = placeholderRegex.exec(currentHtml)) !== null) {
         const fieldName = match[1].trim()
-        const placeholder = match[0] // This is just "{{fieldName}}"
-        currentMappings[fieldName] = placeholder
+        const placeholder = match[0] // This is "{{fieldName}}"
+        templateFieldMappings[placeholder] = fieldName // ✅ placeholder as key, fieldName as value
       }
       
-      console.log('Current field mappings for validation:', currentMappings)
+      console.log('Current field mappings for validation:', templateFieldMappings)
       
       // Validate current field mappings before saving
-      const validationResponse = await fetch('/api/fields/schema', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fieldMappings: currentMappings })
-      })
-      
-      if (validationResponse.ok) {
-        const validationData = await validationResponse.json()
-        console.log('Validation result:', validationData.validation)
+      if (Object.keys(templateFieldMappings).length > 0) {
+        const validationResponse = await fetch('/api/fields/schema', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fieldMappings: templateFieldMappings })
+        })
         
-        if (!validationData.validation.valid) {
-          const invalidFields = validationData.validation.invalidMappings.map(im => im.fieldName).join(', ')
-          if (!confirm(`Warning: The following fields are no longer valid: ${invalidFields}. Do you want to continue saving?`)) {
-            return
+        if (validationResponse.ok) {
+          const validationData = await validationResponse.json()
+          console.log('Validation result:', validationData.validation)
+          
+          if (!validationData.validation.valid) {
+            const invalidFields = validationData.validation.invalidMappings.map(im => im.fieldName).join(', ')
+            if (!confirm(`Warning: The following fields are no longer valid: ${invalidFields}. Do you want to continue saving?`)) {
+              return
+            }
           }
         }
       }
       
-      // Build the template data with proper field mappings
-      const templateFieldMappings = {}
-      Object.keys(currentMappings).forEach(fieldName => {
-        templateFieldMappings[fieldName] = `{{${fieldName}}}`
-      })
-      
+      // Build the template data
       const templateData = {
         ...template,
         html_content: currentHtml,
