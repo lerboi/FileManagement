@@ -1,9 +1,8 @@
 // src/app/templates/page.js
 'use client'
 import TemplateEditorModal from '@/components/templates/TemplateEditorModal'
+import TemplateUploadModal from '@/components/templates/TemplateUploadModal'
 import { useState, useEffect } from 'react'
-import TemplateUpload from '@/components/templates/TemplateUpload'
-import TemplateEditor from '@/components/templates/TemplateEditor'
 import DocumentGeneratorModal from '@/components/documents/DocumentGeneratorModal'
 
 export default function TemplatesPage() {
@@ -20,6 +19,7 @@ export default function TemplatesPage() {
   const [selectedTemplateForGeneration, setSelectedTemplateForGeneration] = useState(null)
   const [showEditorModal, setShowEditorModal] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
+  const [showUploadModal, setShowUploadModal] = useState(false)
 
   useEffect(() => {
     fetchTemplates()
@@ -209,7 +209,7 @@ export default function TemplatesPage() {
       {/* Add this after the opening div */}
       <div className="mb-6 flex justify-end">
         <button
-          onClick={() => window.location.href = '/templates/upload'}
+          onClick={() => setShowUploadModal(true)}
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -363,7 +363,7 @@ export default function TemplatesPage() {
               {!searchTerm && statusFilter === 'all' && (
                 <div className="mt-6">
                   <button
-                    onClick={() => window.location.href = '/templates/upload'}
+                    onClick={() => setShowUploadModal(true)}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -549,6 +549,13 @@ export default function TemplatesPage() {
           </div>
         </div>
       )}
+
+      {/* Template Upload Modal */}
+      <TemplateUploadModal
+        isOpen={showUploadModal}
+        onUploadComplete={handleUploadComplete}
+        onClose={() => setShowUploadModal(false)}
+      />
 
       {/* Template Editor Modal */}
       <TemplateEditorModal

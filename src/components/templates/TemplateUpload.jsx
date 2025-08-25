@@ -136,19 +136,9 @@ export default function TemplateUpload({ onUploadComplete, onCancel }) {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-          Upload Contract Template
-        </h2>
-        <p className="text-gray-600">
-          Convert your Word documents into editable templates with field mappings
-        </p>
-      </div>
-
-      <div className="bg-white rounded-lg shadow border">
+      <div className="bg-white">
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
             <div className="flex items-center">
               <svg className="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -158,7 +148,7 @@ export default function TemplateUpload({ onUploadComplete, onCancel }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* File Upload Area */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

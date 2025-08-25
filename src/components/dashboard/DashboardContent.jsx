@@ -6,6 +6,17 @@ import Link from 'next/link'
 export default function DashboardContent({ user }) {
   const quickActions = [
     {
+      name: 'New Task',
+      description: 'Create a trust distribution task',
+      href: '/tasks',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+      ),
+      color: 'bg-indigo-500 hover:bg-indigo-600'
+    },
+    {
       name: 'Add New Client',
       description: 'Create a new client profile',
       href: '/clients',
@@ -26,17 +37,6 @@ export default function DashboardContent({ user }) {
         </svg>
       ),
       color: 'bg-purple-500 hover:bg-purple-600'
-    },
-    {
-      name: 'Generate Document',
-      description: 'Create document from template',
-      href: '/templates',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-      color: 'bg-green-500 hover:bg-green-600'
     },
     {
       name: 'View Documents',
@@ -64,6 +64,17 @@ export default function DashboardContent({ user }) {
       )
     },
     {
+      name: 'Active Tasks',
+      value: '0',
+      change: '0%',
+      changeType: 'neutral',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+      )
+    },
+    {
       name: 'Templates',
       value: '12',
       change: '+2.02%',
@@ -82,17 +93,6 @@ export default function DashboardContent({ user }) {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-        </svg>
-      )
-    },
-    {
-      name: 'Active Templates',
-      value: '8',
-      change: '0%',
-      changeType: 'neutral',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       )
     }
@@ -182,48 +182,22 @@ export default function DashboardContent({ user }) {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
             <Link 
-              href="/documents"
+              href="/tasks"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
-              View all
+              View all tasks
             </Link>
           </div>
         </div>
         <div className="p-6">
           <div className="space-y-4">
-            {[
-              { action: 'Document generated', item: 'Trust Distribution Agreement - John Smith', time: '2 hours ago', type: 'generate' },
-              { action: 'Template uploaded', item: 'Estate Planning Template', time: '5 hours ago', type: 'upload' },
-              { action: 'Client added', item: 'Sarah Johnson', time: '1 day ago', type: 'client' },
-              { action: 'Document generated', item: 'Power of Attorney - Mike Davis', time: '2 days ago', type: 'generate' },
-            ].map((activity, index) => (
-              <div key={index} className="flex items-center space-x-4">
-                <div className={`p-2 rounded-full ${
-                  activity.type === 'generate' ? 'bg-green-100 text-green-600' :
-                  activity.type === 'upload' ? 'bg-purple-100 text-purple-600' :
-                  'bg-blue-100 text-blue-600'
-                }`}>
-                  {activity.type === 'generate' ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  ) : activity.type === 'upload' ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                  <p className="text-sm text-gray-600">{activity.item}</p>
-                </div>
-                <p className="text-sm text-gray-500">{activity.time}</p>
-              </div>
-            ))}
+            <div className="text-center py-8 text-gray-500">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <p className="mt-2 text-sm">No recent activity to display</p>
+              <p className="text-xs text-gray-400">Create your first task to see activity here</p>
+            </div>
           </div>
         </div>
       </div>

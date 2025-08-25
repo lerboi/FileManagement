@@ -1,9 +1,10 @@
-// src/components/templates/TemplateEditor.jsx (Complete Rewrite)
+// src/components/templates/TemplateEditor.jsx
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
 import DynamicFieldSelector from './DynamicFieldSelector'
 import TemplateEditorMainContent from './TemplateEditorMainContent'
+import CustomFieldBuilder from './CustomFieldBuilder'
 
 export default function TemplateEditor({ 
   template, 
@@ -23,6 +24,10 @@ export default function TemplateEditor({
   const [fieldValidation, setFieldValidation] = useState(null)
   const [availableFields, setAvailableFields] = useState([])
   const [lastCursorPosition, setLastCursorPosition] = useState(null)
+  
+  // New state for custom fields and tabs
+  const [customFields, setCustomFields] = useState(template?.custom_fields || [])
+  const [activeTab, setActiveTab] = useState('content')
   
   // Refs
   const editorRef = useRef(null)
@@ -169,7 +174,17 @@ export default function TemplateEditor({
       const response = await fetch('/api/fields/schema')
       if (response.ok) {
         const data = await response.json()
-        setAvailableFields(data.fields || [])
+        // Combine system fields with custom fields
+        const systemFields = data.fields || []
+        const customFieldsForMapping = customFields.map(cf => ({
+          name: cf.name,
+          label: cf.label,
+          description: cf.description || `Custom field: ${cf.label}`,
+          category: 'custom',
+          computed: false,
+          custom: true
+        }))
+        setAvailableFields([...systemFields, ...customFieldsForMapping])
       }
     } catch (error) {
       console.error('Error fetching fields:', error)
@@ -328,63 +343,6 @@ export default function TemplateEditor({
       return newRange
     }
     
-    // Handle adjacent field placeholders and text nodes within them
-    if (container.nodeType === Node.TEXT_NODE) {
-      // Check if this text node is inside a field placeholder
-      let parentNode = container.parentNode
-      while (parentNode && parentNode !== editorRef.current) {
-        if (parentNode.classList && parentNode.classList.contains('field-placeholder')) {
-          console.log('Text node is inside field placeholder, repositioning outside')
-          const newRange = document.createRange()
-          newRange.setStartAfter(parentNode)
-          newRange.collapse(true)
-          return newRange
-        }
-        parentNode = parentNode.parentNode
-      }
-    }
-    
-    // Handle clicking between elements that include field placeholders
-    if (container.nodeType === Node.ELEMENT_NODE) {
-      const children = Array.from(container.childNodes)
-      const offset = originalRange.startOffset
-      
-      if (offset > 0 && offset < children.length) {
-        const prevNode = children[offset - 1]
-        const nextNode = children[offset]
-        
-        // If previous node is a field placeholder, make sure we're positioned after it
-        if (prevNode && prevNode.classList && prevNode.classList.contains('field-placeholder')) {
-          const newRange = document.createRange()
-          newRange.setStartAfter(prevNode)
-          newRange.collapse(true)
-          console.log('Adjusted cursor to be properly after previous field placeholder')
-          return newRange
-        }
-        
-        // If next node is a field placeholder, make sure we're positioned before it
-        if (nextNode && nextNode.classList && nextNode.classList.contains('field-placeholder')) {
-          const newRange = document.createRange()
-          newRange.setStartBefore(nextNode)
-          newRange.collapse(true)
-          console.log('Adjusted cursor to be properly before next field placeholder')
-          return newRange
-        }
-      }
-      
-      // Handle edge case: clicking at the very end after the last field placeholder
-      if (offset === children.length && offset > 0) {
-        const lastNode = children[offset - 1]
-        if (lastNode && lastNode.classList && lastNode.classList.contains('field-placeholder')) {
-          const newRange = document.createRange()
-          newRange.setStartAfter(lastNode)
-          newRange.collapse(true)
-          console.log('Adjusted cursor to be after the last field placeholder')
-          return newRange
-        }
-      }
-    }
-    
     return originalRange
   }
 
@@ -423,17 +381,6 @@ export default function TemplateEditor({
       return
     }
     
-    // Also check if the click target is inside a field placeholder
-    let currentNode = e.target
-    while (currentNode && currentNode !== editorRef.current) {
-      if (currentNode.classList && currentNode.classList.contains('field-placeholder')) {
-        e.preventDefault()
-        e.stopPropagation()
-        return
-      }
-      currentNode = currentNode.parentNode
-    }
-
     const selection = window.getSelection()
     const hasTextSelection = selection.rangeCount > 0 && selection.toString().trim().length > 0
 
@@ -524,38 +471,6 @@ export default function TemplateEditor({
         return
       }
 
-      const isStale = Date.now() - position.timestamp > 10000
-      let insertionRange
-
-      if (isStale || !position.range || position.range.collapsed === undefined) {
-        console.log('Creating fresh range for insertion with boundary detection')
-        const freshPosition = createFreshCursorPosition(position.x, position.y)
-        if (!freshPosition) {
-          console.error('Could not create fresh cursor position')
-          return
-        }
-        insertionRange = freshPosition.range
-      } else {
-        try {
-          const testContainer = position.range.startContainer
-          const testOffset = position.range.startOffset
-          
-          if (testContainer && typeof testOffset === 'number') {
-            insertionRange = adjustRangeForFieldPlaceholders(position.range)
-          } else {
-            throw new Error('Range validation failed')
-          }
-        } catch (rangeError) {
-          console.log('Existing range is invalid, creating fresh range with boundary detection')
-          const freshPosition = createFreshCursorPosition(position.x, position.y)
-          if (!freshPosition) {
-            console.error('Could not create fresh cursor position')
-            return
-          }
-          insertionRange = freshPosition.range
-        }
-      }
-
       const instanceId = Date.now() + Math.random() // Unique ID for this instance
       const placeholder = `<span class="field-placeholder" data-field="${fieldName}" data-instance-id="${instanceId}" title="Field: ${fieldName}">{{${fieldName}}}</span>`
       
@@ -563,27 +478,11 @@ export default function TemplateEditor({
       tempDiv.innerHTML = placeholder
       const placeholderNode = tempDiv.firstChild
 
-      const needsSpaceBefore = shouldAddSpaceBefore(insertionRange)
-      const needsSpaceAfter = shouldAddSpaceAfter(insertionRange)
-      
+      const insertionRange = position.range.cloneRange()
       insertionRange.collapse(true)
-      
-      if (needsSpaceBefore) {
-        const spaceBefore = document.createTextNode(' ')
-        insertionRange.insertNode(spaceBefore)
-      }
-      
       insertionRange.insertNode(placeholderNode)
       
-      if (needsSpaceAfter) {
-        const spaceAfter = document.createTextNode(' ')
-        const afterRange = document.createRange()
-        afterRange.setStartAfter(placeholderNode)
-        afterRange.collapse(true)
-        afterRange.insertNode(spaceAfter)
-      }
-      
-      updateCursorAfterInsertion(needsSpaceAfter ? insertionRange.endContainer : placeholderNode)
+      updateCursorAfterInsertion(placeholderNode)
       
       setChanges(prev => [...prev, {
         field: fieldName,
@@ -593,92 +492,13 @@ export default function TemplateEditor({
         type: 'click'
       }])
 
-      console.log(`Successfully inserted field: ${fieldName} with proper spacing`)
+      console.log(`Successfully inserted field: ${fieldName}`)
 
     } catch (error) {
       console.error('Error inserting field at click position:', error)
-      try {
-        const editorContent = editorRef.current
-        if (editorContent) {
-          const placeholder = `<span class="field-placeholder" data-field="${fieldName}" title="Field: ${fieldName}">{{${fieldName}}}</span>`
-          editorContent.innerHTML += ` ${placeholder} `
-          console.log('Inserted field as fallback at end of content with spacing')
-        }
-      } catch (fallbackError) {
-        console.error('Fallback insertion also failed:', fallbackError)
-      }
     }
     
     closeFieldSelector()
-  }
-
-  // Spacing Helpers
-  const shouldAddSpaceBefore = (range) => {
-    try {
-      const container = range.startContainer
-      const offset = range.startOffset
-      
-      if (container.nodeType === Node.TEXT_NODE) {
-        if (offset > 0) {
-          const charBefore = container.textContent[offset - 1]
-          return charBefore !== ' ' && charBefore !== '\n' && charBefore !== '\t'
-        }
-      } else if (container.nodeType === Node.ELEMENT_NODE) {
-        if (offset > 0) {
-          const prevNode = container.childNodes[offset - 1]
-          if (prevNode) {
-            if (prevNode.nodeType === Node.ELEMENT_NODE && 
-                prevNode.classList && 
-                prevNode.classList.contains('field-placeholder')) {
-              return true
-            }
-            if (prevNode.nodeType === Node.TEXT_NODE) {
-              const text = prevNode.textContent
-              return text && !text.endsWith(' ') && !text.endsWith('\n')
-            }
-          }
-        }
-      }
-      
-      return false
-    } catch (error) {
-      console.error('Error checking space before:', error)
-      return true
-    }
-  }
-
-  const shouldAddSpaceAfter = (range) => {
-    try {
-      const container = range.startContainer
-      const offset = range.startOffset
-      
-      if (container.nodeType === Node.TEXT_NODE) {
-        if (offset < container.textContent.length) {
-          const charAfter = container.textContent[offset]
-          return charAfter !== ' ' && charAfter !== '\n' && charAfter !== '\t'
-        }
-      } else if (container.nodeType === Node.ELEMENT_NODE) {
-        if (offset < container.childNodes.length) {
-          const nextNode = container.childNodes[offset]
-          if (nextNode) {
-            if (nextNode.nodeType === Node.ELEMENT_NODE && 
-                nextNode.classList && 
-                nextNode.classList.contains('field-placeholder')) {
-              return true
-            }
-            if (nextNode.nodeType === Node.TEXT_NODE) {
-              const text = nextNode.textContent
-              return text && !text.startsWith(' ') && !text.startsWith('\n')
-            }
-          }
-        }
-      }
-      
-      return false
-    } catch (error) {
-      console.error('Error checking space after:', error)
-      return true
-    }
   }
 
   // Field Management
@@ -690,7 +510,6 @@ export default function TemplateEditor({
     
     if (targetElement) {
       // Remove only the specific clicked element
-      console.log('Removing specific field placeholder element')
       const elementInstanceId = targetElement.getAttribute('data-instance-id')
       
       if (targetElement.parentNode) {
@@ -703,7 +522,6 @@ export default function TemplateEditor({
       }
     } else if (instanceId) {
       // Remove by instance ID (for sidebar removal)
-      console.log('Removing field by instance ID:', instanceId)
       const placeholder = editorRef.current.querySelector(`[data-instance-id="${instanceId}"]`)
       if (placeholder && placeholder.parentNode) {
         placeholder.parentNode.removeChild(placeholder)
@@ -711,19 +529,6 @@ export default function TemplateEditor({
       
       // Remove the specific instance from changes array
       setChanges(prev => prev.filter(change => change.instanceId !== instanceId))
-    } else {
-      // Fallback: remove all instances of the field (old behavior)
-      console.log('Removing all instances of field:', fieldName)
-      const placeholders = editorRef.current.querySelectorAll(`[data-field="${fieldName}"]`)
-      
-      placeholders.forEach((placeholder) => {
-        if (placeholder.parentNode) {
-          placeholder.parentNode.removeChild(placeholder)
-        }
-      })
-      
-      // Remove all instances from changes array
-      setChanges(prev => prev.filter(change => change.field !== fieldName))
     }
   }
 
@@ -747,6 +552,13 @@ export default function TemplateEditor({
         removeFieldMapping(fieldName, clickedElement)
       }
     }
+  }
+
+  // Custom Fields Management
+  const handleCustomFieldsChange = (updatedFields) => {
+    setCustomFields(updatedFields)
+    // Update available fields to include custom fields
+    fetchAvailableFields()
   }
 
   // UI Helpers
@@ -785,7 +597,7 @@ export default function TemplateEditor({
     setLoading(true)
     
     try {
-      const currentHtml = editorRef.current.innerHTML
+      const currentHtml = editorRef.current?.innerHTML || htmlContent
       const templateFieldMappings = {}
       const placeholderRegex = /\{\{([^}]+)\}\}/g
       let match
@@ -822,10 +634,11 @@ export default function TemplateEditor({
         ...template,
         html_content: currentHtml,
         field_mappings: templateFieldMappings,
+        custom_fields: customFields, // Include custom fields
         status: 'active'
       }
 
-      console.log('Saving template with field mappings:', templateFieldMappings)
+      console.log('Saving template with field mappings and custom fields:', templateFieldMappings, customFields)
       await onSave(templateData)
     } catch (error) {
       console.error('Error saving template:', error)
@@ -837,7 +650,7 @@ export default function TemplateEditor({
 
   return (
     <div className={isModal ? "h-full flex flex-col bg-white" : "h-screen flex flex-col bg-white"}>
-      {/* Header - only show if not in modal (modal has its own header) */}
+      {/* Header - only show if not in modal */}
       {!isModal && (
         <div className="flex-shrink-0 border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -849,6 +662,8 @@ export default function TemplateEditor({
                 <span>{getFieldCount()} field placeholders</span>
                 <span>•</span>
                 <span>{changes.length} changes made</span>
+                <span>•</span>
+                <span>{customFields.length} custom fields</span>
                 {fieldValidation && (
                   <>
                     <span>•</span>
@@ -897,35 +712,6 @@ export default function TemplateEditor({
               </button>
             </div>
           </div>
-
-          {/* Validation Warnings */}
-          {fieldValidation && !fieldValidation.valid && (
-            <div className="validation-error mt-3">
-              <div className="flex items-center">
-                <svg className="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="font-medium text-red-800">Schema Validation Issues</p>
-                  <p className="text-red-700 text-sm">
-                    {fieldValidation.invalidCount} field mappings are no longer valid. 
-                    Click on red-highlighted fields to fix them.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {fieldValidation?.warnings?.length > 0 && (
-            <div className="validation-warning mt-2">
-              <p className="font-medium text-yellow-800">Warnings:</p>
-              <ul className="text-yellow-700 text-sm list-disc list-inside">
-                {fieldValidation.warnings.map((warning, index) => (
-                  <li key={index}>{warning.message}</li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
 
@@ -937,6 +723,8 @@ export default function TemplateEditor({
               <span>{getFieldCount()} field placeholders</span>
               <span>•</span>
               <span>{changes.length} changes made</span>
+              <span>•</span>
+              <span>{customFields.length} custom fields</span>
               {fieldValidation && (
                 <>
                   <span>•</span>
@@ -984,51 +772,79 @@ export default function TemplateEditor({
               </button>
             </div>
           </div>
-
-          {/* Compact validation warnings for modal */}
-          {fieldValidation && !fieldValidation.valid && (
-            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
-              <p className="font-medium text-red-800">
-                {fieldValidation.invalidCount} invalid field mappings - click red fields to fix
-              </p>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Main Content */}
-      <TemplateEditorMainContent
-        editorRef={editorRef}
-        htmlContent={htmlContent}
-        showFieldSelector={showFieldSelector}
-        selectedText={selectedText}
-        clickPosition={clickPosition}
-        interactionMode={interactionMode}
-        changes={changes}
-        fieldValidation={fieldValidation}
-        availableFields={availableFields}
-        lastCursorPosition={lastCursorPosition}
-        onEditorInteraction={handleEditorInteraction}
-        onFieldMapping={handleFieldMapping}
-        onCloseFieldSelector={closeFieldSelector}
-        onPlaceholderClick={handlePlaceholderClick}
-        onRemoveFieldMapping={removeFieldMapping}
-        onSyncHtmlContent={syncHtmlContent}
-        getFieldSelectorPosition={getFieldSelectorPosition}
-        isDevelopmentMode={process.env.NODE_ENV === 'development'}
-      />
+      {/* Tab Navigation */}
+      <div className="flex-shrink-0 border-b border-gray-200 bg-white">
+        <nav className="flex space-x-8 px-6">
+          <button
+            onClick={() => setActiveTab('content')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'content'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Document Content
+          </button>
+          <button
+            onClick={() => setActiveTab('fields')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'fields'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Custom Fields
+            {customFields.length > 0 && (
+              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {customFields.length}
+              </span>
+            )}
+          </button>
+        </nav>
+      </div>
 
-      {/* Footer with Instructions - only show if not in modal */}
-      {!isModal && (
+      {/* Tab Content */}
+      {activeTab === 'content' ? (
+        <TemplateEditorMainContent
+          editorRef={editorRef}
+          htmlContent={htmlContent}
+          showFieldSelector={showFieldSelector}
+          selectedText={selectedText}
+          clickPosition={clickPosition}
+          interactionMode={interactionMode}
+          changes={changes}
+          fieldValidation={fieldValidation}
+          availableFields={availableFields}
+          lastCursorPosition={lastCursorPosition}
+          onEditorInteraction={handleEditorInteraction}
+          onFieldMapping={handleFieldMapping}
+          onCloseFieldSelector={closeFieldSelector}
+          onPlaceholderClick={handlePlaceholderClick}
+          onRemoveFieldMapping={removeFieldMapping}
+          onSyncHtmlContent={syncHtmlContent}
+          getFieldSelectorPosition={getFieldSelectorPosition}
+          isDevelopmentMode={process.env.NODE_ENV === 'development'}
+        />
+      ) : (
+        <CustomFieldBuilder
+          fields={customFields}
+          onChange={handleCustomFieldsChange}
+        />
+      )}
+
+      {/* Footer with Instructions - only show if not in modal and on content tab */}
+      {!isModal && activeTab === 'content' && (
         <div className="flex-shrink-0 bg-blue-50 border-t border-blue-200 px-6 py-3">
           <div className="flex items-start text-sm text-blue-800">
             <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <p><strong>Enhanced Smart Interaction:</strong> The editor now features improved cursor tracking that prevents formatting issues when inserting consecutive fields. 
-              The system automatically refreshes cursor positions and handles DOM changes intelligently. 
-              Yellow highlighted fields show current mappings - click them to modify or remove.</p>
+              <p><strong>Enhanced Template Editor:</strong> Use the "Document Content" tab to map fields to your template content, and the "Custom Fields" tab to define additional fields specific to this trust type. 
+              Custom fields will automatically appear in the field selector and can be used in document generation.</p>
             </div>
           </div>
         </div>
