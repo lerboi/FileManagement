@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { FieldSchemaService } from '@/lib/services/fieldSchemaService'
+import { createServiceSupabase } from '@/lib/supabase'
 
 // GET - Fetch current client table schema
 export async function GET(request) {
@@ -62,13 +63,13 @@ export async function GET(request) {
   }
 }
 
-// POST - Validate field mappings against current schema
+// POST - Validate field mappings against current schema (including custom fields)
 export async function POST(request) {
   try {
     // Check authentication
     await requireAuth()
     
-    const { fieldMappings } = await request.json()
+    const { fieldMappings, templateId } = await request.json()
     
     if (!fieldMappings || typeof fieldMappings !== 'object') {
       return NextResponse.json(
@@ -77,8 +78,42 @@ export async function POST(request) {
       )
     }
     
+    // Get system fields schema
     const schema = await FieldSchemaService.getClientTableSchema()
-    const availableFieldNames = schema.map(f => f.name)
+    const systemFieldNames = schema.map(f => f.name)
+    
+    // Get custom fields for this template if templateId is provided
+    let customFieldNames = []
+    if (templateId) {
+      try {
+        const supabase = createServiceSupabase()
+        const { data: template, error } = await supabase
+          .from('document_templates')
+          .select('custom_fields')
+          .eq('id', templateId)
+          .single()
+        
+        if (!error && template && template.custom_fields) {
+          customFieldNames = template.custom_fields
+            .filter(cf => cf.name) // Only fields with names
+            .map(cf => cf.name)
+          
+          console.log(`Found ${customFieldNames.length} custom fields for template ${templateId}:`, customFieldNames)
+        }
+      } catch (customFieldError) {
+        console.error('Error fetching custom fields for validation:', customFieldError)
+        // Continue validation without custom fields if fetch fails
+      }
+    }
+    
+    // Combine system fields with custom fields
+    const availableFieldNames = [...systemFieldNames, ...customFieldNames]
+    
+    console.log('Validating against fields:', {
+      systemFields: systemFieldNames.length,
+      customFields: customFieldNames.length,
+      total: availableFieldNames.length
+    })
     
     const validMappings = []
     const invalidMappings = []
@@ -86,30 +121,49 @@ export async function POST(request) {
     
     Object.entries(fieldMappings).forEach(([placeholder, fieldName]) => {
       if (availableFieldNames.includes(fieldName)) {
+        // Find field info (system or custom)
+        let fieldInfo = schema.find(f => f.name === fieldName)
+        if (!fieldInfo && customFieldNames.includes(fieldName)) {
+          // Create field info for custom field
+          fieldInfo = {
+            name: fieldName,
+            type: 'custom',
+            category: 'custom',
+            computed: false,
+            custom: true
+          }
+        }
+        
         validMappings.push({
           placeholder,
           fieldName,
-          fieldInfo: schema.find(f => f.name === fieldName)
+          fieldInfo
         })
       } else {
         invalidMappings.push({
           placeholder,
           fieldName,
-          reason: 'Field no longer exists in schema'
+          reason: 'Field no longer exists in schema or custom fields'
         })
       }
     })
     
     // Check for potential issues
-    schema.forEach(field => {
-      const usageCount = validMappings.filter(m => m.fieldName === field.name).length
-      if (usageCount > 1 && !field.computed) {
-        warnings.push({
-          type: 'multiple_usage',
-          fieldName: field.name,
-          count: usageCount,
-          message: `Field "${field.name}" is used ${usageCount} times`
-        })
+    availableFieldNames.forEach(fieldName => {
+      const usageCount = validMappings.filter(m => m.fieldName === fieldName).length
+      if (usageCount > 1) {
+        // Check if it's a computed field (those can be used multiple times)
+        const fieldInfo = schema.find(f => f.name === fieldName)
+        const isComputed = fieldInfo?.computed || customFieldNames.includes(fieldName) // Custom fields can be reused
+        
+        if (!isComputed) {
+          warnings.push({
+            type: 'multiple_usage',
+            fieldName,
+            count: usageCount,
+            message: `Field "${fieldName}" is used ${usageCount} times`
+          })
+        }
       }
     })
     
@@ -122,7 +176,8 @@ export async function POST(request) {
         warnings,
         totalMappings: Object.keys(fieldMappings).length,
         validCount: validMappings.length,
-        invalidCount: invalidMappings.length
+        invalidCount: invalidMappings.length,
+        customFieldsValidated: customFieldNames.length
       }
     })
     

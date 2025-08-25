@@ -34,10 +34,14 @@ export default function TemplateEditor({
 
   // Initialize component
   useEffect(() => {
-    fetchAvailableFields()
-    if (template?.field_mappings) {
-      validateCurrentMappings()
+    const initializeEditor = async () => {
+      await fetchAvailableFields()
+      if (template?.field_mappings) {
+        validateCurrentMappings()
+      }
     }
+    
+    initializeEditor()
   }, [template])
 
   // Add CSS styles for field placeholders
@@ -126,13 +130,15 @@ export default function TemplateEditor({
 
   // Update editor content when htmlContent changes
   useEffect(() => {
-    updateEditorContent()
-  }, [htmlContent, fieldValidation])
+    if (activeTab === 'content') {
+      updateEditorContent()
+    }
+  }, [htmlContent, fieldValidation, activeTab])
 
   // Track cursor position changes and prevent cursor inside field placeholders
   useEffect(() => {
     const handleSelectionChange = () => {
-      if (!showFieldSelector && editorRef.current) {
+      if (!showFieldSelector && editorRef.current && activeTab === 'content') {
         const selection = window.getSelection()
         if (selection.rangeCount > 0 && selection.isCollapsed) {
           const range = selection.getRangeAt(0)
@@ -159,9 +165,11 @@ export default function TemplateEditor({
       }
     }
 
-    document.addEventListener('selectionchange', handleSelectionChange)
-    return () => document.removeEventListener('selectionchange', handleSelectionChange)
-  }, [showFieldSelector])
+    if (activeTab === 'content') {
+      document.addEventListener('selectionchange', handleSelectionChange)
+      return () => document.removeEventListener('selectionchange', handleSelectionChange)
+    }
+  }, [showFieldSelector, activeTab])
 
   // Sync changes to state
   useEffect(() => {
@@ -171,12 +179,45 @@ export default function TemplateEditor({
   // API Functions
   const fetchAvailableFields = async () => {
     try {
-      const response = await fetch('/api/fields/schema')
-      if (response.ok) {
-        const data = await response.json()
-        // Combine system fields with custom fields
-        const systemFields = data.fields || []
-        const customFieldsForMapping = customFields.map(cf => ({
+      // Fetch system fields from schema
+      const schemaResponse = await fetch('/api/fields/schema')
+      let systemFields = []
+      if (schemaResponse.ok) {
+        const schemaData = await schemaResponse.json()
+        systemFields = schemaData.fields || []
+      }
+
+      // Fetch custom fields from the template in database
+      let customFieldsFromDB = []
+      if (template?.id) {
+        try {
+          const customFieldsResponse = await fetch(`/api/templates/${template.id}/custom-fields`)
+          if (customFieldsResponse.ok) {
+            const customFieldsData = await customFieldsResponse.json()
+            customFieldsFromDB = (customFieldsData.customFields || []).map(cf => ({
+              name: cf.name,
+              label: cf.label,
+              description: cf.description || `Custom field: ${cf.label}`,
+              category: 'custom',
+              computed: false,
+              custom: true
+            }))
+          }
+        } catch (customFieldError) {
+          console.error('Error fetching custom fields from database:', customFieldError)
+          // Fallback to local state custom fields if database fetch fails
+          customFieldsFromDB = customFields.map(cf => ({
+            name: cf.name,
+            label: cf.label,
+            description: cf.description || `Custom field: ${cf.label}`,
+            category: 'custom',
+            computed: false,
+            custom: true
+          }))
+        }
+      } else {
+        // If no template ID, use local state custom fields
+        customFieldsFromDB = customFields.map(cf => ({
           name: cf.name,
           label: cf.label,
           description: cf.description || `Custom field: ${cf.label}`,
@@ -184,10 +225,31 @@ export default function TemplateEditor({
           computed: false,
           custom: true
         }))
-        setAvailableFields([...systemFields, ...customFieldsForMapping])
       }
+
+      // Combine system fields with custom fields from database
+      const allFields = [...systemFields, ...customFieldsFromDB]
+      setAvailableFields(allFields)
+      
+      console.log('Available fields updated:', {
+        systemFields: systemFields.length,
+        customFields: customFieldsFromDB.length,
+        total: allFields.length
+      })
+      
     } catch (error) {
-      console.error('Error fetching fields:', error)
+      console.error('Error fetching available fields:', error)
+      
+      // Fallback: use only local custom fields if everything fails
+      const fallbackCustomFields = customFields.map(cf => ({
+        name: cf.name,
+        label: cf.label,
+        description: cf.description || `Custom field: ${cf.label}`,
+        category: 'custom',
+        computed: false,
+        custom: true
+      }))
+      setAvailableFields(fallbackCustomFields)
     }
   }
 
@@ -196,7 +258,10 @@ export default function TemplateEditor({
       const response = await fetch('/api/fields/schema', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fieldMappings: template.field_mappings || {} })
+        body: JSON.stringify({ 
+          fieldMappings: template.field_mappings || {},
+          templateId: template?.id // Include template ID for custom fields validation
+        })
       })
       
       if (response.ok) {
@@ -248,7 +313,7 @@ export default function TemplateEditor({
 
   // Content Management Functions
   const syncHtmlContent = () => {
-    if (editorRef.current) {
+    if (editorRef.current && activeTab === 'content') {
       const newContent = editorRef.current.innerHTML
       if (newContent !== htmlContent) {
         console.log('Syncing HTML content from DOM')
@@ -258,10 +323,12 @@ export default function TemplateEditor({
   }
 
   const updateEditorContent = () => {
-    if (editorRef.current && editorRef.current.innerHTML !== htmlContent) {
-      console.log('Updating editor content')
-      editorRef.current.innerHTML = htmlContent
-      highlightInvalidFields()
+    if (editorRef.current && activeTab === 'content' && htmlContent) {
+      console.log('Updating editor content, current length:', htmlContent.length)
+      if (editorRef.current.innerHTML !== htmlContent) {
+        editorRef.current.innerHTML = htmlContent
+        highlightInvalidFields()
+      }
     }
   }
 
@@ -557,8 +624,19 @@ export default function TemplateEditor({
   // Custom Fields Management
   const handleCustomFieldsChange = (updatedFields) => {
     setCustomFields(updatedFields)
-    // Update available fields to include custom fields
-    fetchAvailableFields()
+    // Note: Don't call fetchAvailableFields() here as it causes API calls on every keystroke
+    // Only refresh fields when they are actually saved
+  }
+
+  const handleFieldSaved = async () => {
+    // Refresh available fields from database when a custom field is saved
+    console.log('Custom field saved, refreshing available fields from database')
+    await fetchAvailableFields()
+  }
+
+  // Tab switching handler
+  const handleTabSwitch = (tab) => {
+    setActiveTab(tab)
   }
 
   // UI Helpers
@@ -614,7 +692,10 @@ export default function TemplateEditor({
         const validationResponse = await fetch('/api/fields/schema', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fieldMappings: templateFieldMappings })
+          body: JSON.stringify({ 
+            fieldMappings: templateFieldMappings,
+            templateId: template?.id // Pass template ID for custom fields validation
+          })
         })
         
         if (validationResponse.ok) {
@@ -779,7 +860,7 @@ export default function TemplateEditor({
       <div className="flex-shrink-0 border-b border-gray-200 bg-white">
         <nav className="flex space-x-8 px-6">
           <button
-            onClick={() => setActiveTab('content')}
+            onClick={() => handleTabSwitch('content')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'content'
                 ? 'border-blue-500 text-blue-600'
@@ -789,7 +870,7 @@ export default function TemplateEditor({
             Document Content
           </button>
           <button
-            onClick={() => setActiveTab('fields')}
+            onClick={() => handleTabSwitch('fields')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'fields'
                 ? 'border-blue-500 text-blue-600'
@@ -832,6 +913,8 @@ export default function TemplateEditor({
         <CustomFieldBuilder
           fields={customFields}
           onChange={handleCustomFieldsChange}
+          onFieldSaved={handleFieldSaved}
+          templateId={template?.id}
         />
       )}
 

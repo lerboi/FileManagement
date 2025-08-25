@@ -9,10 +9,12 @@ export default function CustomFieldItem({
   index, 
   onUpdate, 
   onDelete, 
+  onSave,
   onMoveUp, 
   onMoveDown, 
   isFirst = false, 
-  isLast = false 
+  isLast = false,
+  saving = false
 }) {
   const [localField, setLocalField] = useState({
     id: '',
@@ -27,6 +29,7 @@ export default function CustomFieldItem({
     validation: {},
     options: [],
     checkboxLabel: '',
+    isNew: false,
     ...field
   })
 
@@ -85,6 +88,25 @@ export default function CustomFieldItem({
     onUpdate(index, updatedField)
   }
 
+  const handleSave = async () => {
+    if (!localField.label || !localField.type) {
+      alert('Please fill in the field label and type before saving.')
+      return
+    }
+    
+    const success = await onSave(index)
+    if (success) {
+      // Field was successfully saved
+      console.log('Field saved successfully')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (localField.isNew || confirm(`Are you sure you want to delete the "${localField.label}" field?`)) {
+      await onDelete(index)
+    }
+  }
+
   const categories = [
     { value: '', label: 'No Category' },
     { value: 'trust_details', label: 'Trust Details' },
@@ -96,17 +118,23 @@ export default function CustomFieldItem({
   ]
 
   return (
-    <div className="bg-white border rounded-lg p-4 space-y-4">
-      {/* Header with reorder buttons */}
+    <div className={`bg-white border rounded-lg p-4 space-y-4 ${localField.isNew ? 'border-blue-300 bg-blue-50' : ''}`}>
+      {/* Header with reorder buttons and save/delete */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
           <h4 className="font-medium text-gray-900">
             {localField.label || 'New Custom Field'}
           </h4>
+          {localField.isNew && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+              Unsaved
+            </span>
+          )}
         </div>
         
         <div className="flex items-center space-x-1">
+          {/* Reorder buttons */}
           {!isFirst && (
             <button
               onClick={() => onMoveUp(index)}
@@ -131,8 +159,36 @@ export default function CustomFieldItem({
             </button>
           )}
           
+          {/* Save button - only show for new/unsaved fields */}
+          {localField.isNew && (
+            <button
+              onClick={handleSave}
+              disabled={saving || !localField.label || !localField.type}
+              className="inline-flex items-center px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              title="Save field"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save
+                </>
+              )}
+            </button>
+          )}
+          
+          {/* Delete button */}
           <button
-            onClick={() => onDelete(index)}
+            onClick={handleDelete}
             className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
             title="Delete field"
           >
@@ -142,6 +198,20 @@ export default function CustomFieldItem({
           </button>
         </div>
       </div>
+
+      {/* Required fields notice for new fields */}
+      {localField.isNew && (!localField.label || !localField.type) && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+          <div className="flex items-center">
+            <svg className="w-4 h-4 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-yellow-800">
+              Please complete the field label and type to save this custom field.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Basic Settings */}

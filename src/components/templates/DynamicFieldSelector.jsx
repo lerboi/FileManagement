@@ -7,6 +7,7 @@ export default function DynamicFieldSelector({
   onFieldSelect, 
   selectedText = '', 
   clickPosition = null,
+  availableFields = null, // New prop to receive fields from parent
   onClose 
 }) {
   const [fields, setFields] = useState([])
@@ -16,8 +17,20 @@ export default function DynamicFieldSelector({
   const [categories, setCategories] = useState([])
 
   useEffect(() => {
-    fetchAvailableFields()
-  }, [])
+    if (availableFields && availableFields.length > 0) {
+      // Use fields passed from parent (includes custom fields)
+      console.log('Using available fields from parent:', availableFields.length, 'fields')
+      setFields(availableFields)
+      
+      // Extract unique categories
+      const uniqueCategories = [...new Set(availableFields.map(f => f.category))].sort()
+      setCategories(uniqueCategories)
+      setLoading(false)
+    } else {
+      // Fallback: fetch fields if none provided
+      fetchAvailableFields()
+    }
+  }, [availableFields])
 
   const fetchAvailableFields = async () => {
     setLoading(true)
@@ -93,7 +106,7 @@ export default function DynamicFieldSelector({
   }
 
   return (
-    <div className="bg-white border rounded-lg shadow-lg p-4 max-w-md w-full max-h-96 overflow-hidden flex flex-col">
+    <div className="bg-white border rounded-lg shadow-lg p-4 max-w-md w-full max-h-[50vh] overflow-hidden flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-medium text-gray-900">
@@ -168,6 +181,9 @@ export default function DynamicFieldSelector({
               {/* Category Header */}
               <div className={`px-2 py-1 rounded text-xs font-medium border ${getCategoryColor(category)}`}>
                 {getCategoryIcon(category)} {category.charAt(0).toUpperCase() + category.slice(1)}
+                {category === 'custom' && (
+                  <span className="ml-1 text-xs opacity-75">({categoryFields.length})</span>
+                )}
               </div>
               
               {/* Category Fields */}
@@ -185,6 +201,11 @@ export default function DynamicFieldSelector({
                           {field.computed && (
                             <span className="ml-1 px-1 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
                               computed
+                            </span>
+                          )}
+                          {field.custom && (
+                            <span className="ml-1 px-1 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded">
+                              custom
                             </span>
                           )}
                         </div>
@@ -213,6 +234,13 @@ export default function DynamicFieldSelector({
       <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-500 text-center">
         {filteredFields.length} field{filteredFields.length !== 1 ? 's' : ''} available
         {searchTerm && ` (filtered from ${fields.length})`}
+        {availableFields && (
+          <div className="mt-1">
+            <span className="text-indigo-600">
+              {fields.filter(f => f.custom).length} custom field{fields.filter(f => f.custom).length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )

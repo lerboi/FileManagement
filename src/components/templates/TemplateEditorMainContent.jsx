@@ -37,11 +37,20 @@ export default function TemplateEditorMainContent({
   // Configuration
   isDevelopmentMode = false
 }) {
+  // Initialize editor content when component mounts
+  useEffect(() => {
+    if (editorRef.current && htmlContent && !editorRef.current.innerHTML) {
+      console.log('Initializing editor content on mount, length:', htmlContent.length)
+      editorRef.current.innerHTML = htmlContent
+    }
+  }, [htmlContent])
+
   // Event handlers setup
   useEffect(() => {
     const handleInput = () => {
       setTimeout(onSyncHtmlContent, 0)
     }
+    
     const handlePlaceholderClicks = (e) => {
       const target = e.target
       if (target.classList.contains('field-placeholder')) {
@@ -107,12 +116,16 @@ export default function TemplateEditorMainContent({
     if (currentEditor) {
       currentEditor.addEventListener('click', handlePlaceholderClicks)
       currentEditor.addEventListener('input', handleInput)
+      currentEditor.addEventListener('paste', handlePaste)
+      currentEditor.addEventListener('cut', handleCut)
       document.addEventListener('click', handleClickOutside)
       document.addEventListener('keydown', handleKeyDown)
       
       return () => {
         currentEditor.removeEventListener('click', handlePlaceholderClicks)
         currentEditor.removeEventListener('input', handleInput)
+        currentEditor.removeEventListener('paste', handlePaste)
+        currentEditor.removeEventListener('cut', handleCut)
         document.removeEventListener('click', handleClickOutside)
         document.removeEventListener('keydown', handleKeyDown)
       }
@@ -131,9 +144,9 @@ export default function TemplateEditorMainContent({
                 Click anywhere to insert fields, or select text to replace with fields
               </p>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="flex items-center space-x-2">
               {interactionMode && (
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
                   {interactionMode === 'highlight' ? 'Replacing selected text' : 
                    interactionMode === 'click' ? 'Inserting at cursor' : 
                    'Replacing invalid field'}
@@ -167,6 +180,7 @@ export default function TemplateEditorMainContent({
               <DynamicFieldSelector
                 selectedText={selectedText}
                 clickPosition={clickPosition}
+                availableFields={availableFields}
                 onFieldSelect={onFieldMapping}
                 onClose={onCloseFieldSelector}
               />
@@ -210,6 +224,18 @@ export default function TemplateEditorMainContent({
                   Click position ready for field insertion
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Content Status */}
+          {htmlContent && (
+            <div className="bg-white border rounded-lg p-3">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Content Status</h4>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p>• Content length: {htmlContent.length} characters</p>
+                <p>• Editor loaded: {editorRef.current ? 'Yes' : 'No'}</p>
+                <p>• Last updated: {new Date().toLocaleTimeString()}</p>
+              </div>
             </div>
           )}
 
@@ -271,6 +297,7 @@ export default function TemplateEditorMainContent({
             <div className="text-xs text-gray-600 space-y-1">
               <p>• {availableFields.length} fields available</p>
               <p>• {availableFields.filter(f => f.computed).length} computed fields</p>
+              <p>• {availableFields.filter(f => f.custom).length} custom fields</p>
               <p>• Auto-updates when schema changes</p>
               <p>• Smart cursor tracking enabled</p>
             </div>
@@ -285,6 +312,19 @@ export default function TemplateEditorMainContent({
                 <p>• Offset: {lastCursorPosition.offset}</p>
                 <p>• Age: {Math.round((Date.now() - lastCursorPosition.timestamp) / 1000)}s</p>
                 <p>• Node: {lastCursorPosition.textNode?.nodeName || 'unknown'}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Debug: Content Status (only in development) */}
+          {isDevelopmentMode && (
+            <div className="bg-gray-100 border border-gray-300 rounded-lg p-3">
+              <h4 className="text-sm font-medium text-gray-800 mb-2">Debug: Content Status</h4>
+              <div className="text-xs text-gray-700 space-y-1">
+                <p>• HTML Content Length: {htmlContent?.length || 0}</p>
+                <p>• Editor Content Length: {editorRef.current?.innerHTML?.length || 0}</p>
+                <p>• Editor Ref Available: {editorRef.current ? 'Yes' : 'No'}</p>
+                <p>• Content Match: {editorRef.current?.innerHTML === htmlContent ? 'Yes' : 'No'}</p>
               </div>
             </div>
           )}
