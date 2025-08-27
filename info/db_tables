@@ -79,3 +79,78 @@ document_templates
     "column_default": "now()"
   }
 ]
+
+generated_documents
+
+[
+  {
+    "column_name": "id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": "gen_random_uuid()"
+  },
+  {
+    "column_name": "template_id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "column_name": "client_id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "column_name": "generated_content",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "column_name": "original_template_name",
+    "data_type": "character varying",
+    "character_maximum_length": 255,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "column_name": "client_name",
+    "data_type": "character varying",
+    "character_maximum_length": 255,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "column_name": "status",
+    "data_type": "character varying",
+    "character_maximum_length": 50,
+    "is_nullable": "YES",
+    "column_default": "'generated'::character varying"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "column_name": "custom_field_values",
+    "data_type": "jsonb",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "'{}'::jsonb"
+  }
+]

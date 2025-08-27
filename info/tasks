@@ -1,1 +1,32 @@
-1) Fix the generate document custom_field not being filled
+
+
+Tasks workflow
+
+- There will be 2 Stasuses, In progress, Awaiting, and Completed. 
+- Status set to In Progress first
+- There will be options to start different Services. A task started will represent a beginning of a service for a Client.
+- A Service basically represents a bundle of Templates that are Active. The Templates that are Active can be fetched from the document_templates table in my Supabase db.
+- Each service will have different forms, so the overall workflow would be to start a task -> select a service -> fill up custom info (any custom_fields that are required for the document template) -> select client -> generate all the forms in the service
+- For each task that is completed for a client, there will be a set template output for each client (etc document creation date). These data will only be fully available when the task is fully complete, and these must be added to the client data to be displayed in the CRM.
+- The Document should be downloadable in Word doc format (and option to submit straight to a google drive)
+- Once the Document is downloaded, the user needs to upload back the signed form, then confirm upload, and only THEN will the task be Completed. When the documents are generated, the status should change from In Progress to Awaiting.
+- There should be an option to upload additional files that will be stored in the Additional Post-incorporation Services which can be viewed for in the client data in the CRM.
+
+
+
+Need to create Services tab: Each service is a bundle of documents that need to be filled up
+
+
+CRM Workflow
+
+Need a history of completed tasks for each client
+be able to view the documents for each completed task
+
+Save a create client process as draft
+
+
+
+
+
+
+

@@ -8,9 +8,9 @@ export async function POST(request) {
     // Check authentication
     await requireAuth()
 
-    const { templateId, clientId } = await request.json()
+    const { templateId, clientId, customFieldValues = {} } = await request.json()
 
-    console.log('Document generation request:', { templateId, clientId })
+    console.log('Document generation request:', { templateId, clientId, customFieldValues })
 
     if (!templateId || !clientId) {
       return NextResponse.json(
@@ -21,8 +21,8 @@ export async function POST(request) {
 
     const supabase = await createServerSupabase()
 
-    // Fetch template
-    console.log('Fetching template...')
+    // Fetch template with custom_fields
+    console.log('Fetching template with custom fields...')
     const { data: template, error: templateError } = await supabase
       .from('document_templates')
       .select('*')
@@ -54,9 +54,14 @@ export async function POST(request) {
       throw new Error(`Failed to fetch client: ${clientError.message}`)
     }
 
-    // Generate document
+    // Generate document with template's custom fields
     console.log('Generating document...')
-    const generatedHtml = generateDocumentFromTemplate(template.html_content, client)
+    const generatedHtml = generateDocumentFromTemplate(
+      template.html_content, 
+      client, 
+      customFieldValues,
+      template.custom_fields || [] // Pass the template's custom fields
+    )
 
     // Create document record
     const documentData = {
@@ -66,7 +71,8 @@ export async function POST(request) {
       original_template_name: template.name,
       client_name: `${client.first_name} ${client.last_name}`,
       status: 'generated',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      custom_field_values: customFieldValues // Store custom field values used
     }
 
     console.log('Saving document record...')
@@ -98,13 +104,15 @@ export async function POST(request) {
   }
 }
 
-// Helper function to replace template fields with client data
-function generateDocumentFromTemplate(htmlContent, client) {
-  console.log('Processing template with client data...')
+// Helper function to replace template fields with client data and custom field values
+function generateDocumentFromTemplate(htmlContent, client, customFieldValues = {}, templateCustomFields = []) {
+  console.log('Processing template with client data and custom fields...')
+  console.log('Template custom fields from database:', templateCustomFields)
+  console.log('Custom field values provided by user:', customFieldValues)
   
   let processedHtml = htmlContent
 
-  // Define field mappings
+  // Define field mappings for client data (existing system fields)
   const fieldMappings = {
     'first_name': client.first_name || '',
     'last_name': client.last_name || '',
@@ -125,38 +133,88 @@ function generateDocumentFromTemplate(htmlContent, client) {
     'full_address': buildFullAddress(client)
   }
 
-  console.log('Available field mappings:', Object.keys(fieldMappings))
+  // Add custom field values using exact field names from template's custom_fields
+  console.log('Processing custom fields...')
+  templateCustomFields.forEach(customField => {
+    if (customField.name) {
+      const fieldName = customField.name
+      const fieldValue = customFieldValues[fieldName] || customField.defaultValue || ''
+      
+      console.log(`Mapping custom field: "${fieldName}" -> "${fieldValue}"`)
+      fieldMappings[fieldName] = fieldValue
+      
+      // Also add the field by label as a fallback (in case placeholders use label instead of name)
+      if (customField.label && customField.label !== fieldName) {
+        const labelAsFieldName = customField.label.toLowerCase().replace(/[^a-z0-9]/g, '_')
+        console.log(`Adding label mapping: "${labelAsFieldName}" -> "${fieldValue}"`)
+        fieldMappings[labelAsFieldName] = fieldValue
+      }
+    }
+  })
+
+  console.log('Final field mappings:', Object.keys(fieldMappings))
+
+  // Find all placeholders in the template first for debugging
+  const placeholderMatches = processedHtml.match(/\{\{([^}]+)\}\}/g) || []
+  const uniquePlaceholders = [...new Set(placeholderMatches)]
+  console.log('Found placeholders in template:', uniquePlaceholders)
 
   // Replace all field placeholders
   Object.entries(fieldMappings).forEach(([fieldName, fieldValue]) => {
-    // Replace both span-wrapped and direct placeholders
-    const spanRegex = new RegExp(
-      `<span[^>]*class="field-placeholder"[^>]*>\\{\\{${escapeRegExp(fieldName)}\\}\\}</span>`,
-      'g'
-    )
-    const directRegex = new RegExp(`\\{\\{${escapeRegExp(fieldName)}\\}\\}`, 'g')
+    // Create regex patterns for different placeholder formats
+    const patterns = [
+      // Span-wrapped placeholders (from template editor)
+      new RegExp(
+        `<span[^>]*class="field-placeholder"[^>]*>\\{\\{${escapeRegExp(fieldName)}\\}\\}</span>`,
+        'gi'
+      ),
+      // Direct placeholders
+      new RegExp(`\\{\\{${escapeRegExp(fieldName)}\\}\\}`, 'gi')
+    ]
     
-    const replacementCount = (processedHtml.match(spanRegex) || []).length + 
-                            (processedHtml.match(directRegex) || []).length
+    let totalReplacements = 0
+    patterns.forEach(regex => {
+      const matches = processedHtml.match(regex) || []
+      if (matches.length > 0) {
+        processedHtml = processedHtml.replace(regex, fieldValue)
+        totalReplacements += matches.length
+      }
+    })
     
-    if (replacementCount > 0) {
-      console.log(`Replacing ${replacementCount} instances of {{${fieldName}}} with "${fieldValue}"`)
+    if (totalReplacements > 0) {
+      console.log(`✓ Replaced ${totalReplacements} instances of {{${fieldName}}} with "${fieldValue}"`)
     }
-    
-    processedHtml = processedHtml.replace(spanRegex, fieldValue)
-    processedHtml = processedHtml.replace(directRegex, fieldValue)
   })
 
-  // Clean up any remaining unmapped placeholders
-  const remainingPlaceholders = processedHtml.match(/\{\{([^}]+)\}\}/g)
-  if (remainingPlaceholders) {
-    console.warn('Unmapped placeholders found:', remainingPlaceholders)
-    remainingPlaceholders.forEach(placeholder => {
+  // Check for any remaining unmapped placeholders
+  const finalRemainingPlaceholders = processedHtml.match(/\{\{([^}]+)\}\}/g)
+  if (finalRemainingPlaceholders) {
+    console.warn('Unmapped placeholders found:', finalRemainingPlaceholders)
+    
+    // Try to identify if these are custom fields that weren't provided values
+    finalRemainingPlaceholders.forEach(placeholder => {
       const fieldName = placeholder.replace(/[{}]/g, '')
-      processedHtml = processedHtml.replace(
-        new RegExp(escapeRegExp(placeholder), 'g'),
-        `[${fieldName.toUpperCase()}]`
+      
+      // Check if this matches any custom field from the template
+      const matchingCustomField = templateCustomFields.find(cf => 
+        cf.name === fieldName || 
+        cf.label?.toLowerCase().replace(/[^a-z0-9]/g, '_') === fieldName
       )
+      
+      if (matchingCustomField) {
+        console.warn(`Custom field "${fieldName}" found in template but no value provided`)
+        // Replace with a more descriptive placeholder
+        processedHtml = processedHtml.replace(
+          new RegExp(escapeRegExp(placeholder), 'g'),
+          `[${matchingCustomField.label || fieldName} - NO VALUE PROVIDED]`
+        )
+      } else {
+        // Unknown field
+        processedHtml = processedHtml.replace(
+          new RegExp(escapeRegExp(placeholder), 'g'),
+          `[${fieldName.toUpperCase()}_NOT_FOUND]`
+        )
+      }
     })
   }
 
