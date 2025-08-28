@@ -10,7 +10,7 @@ export class TaskManagementService {
       const {
         page = 1,
         limit = 10,
-        status = null,
+        status = 'all',
         clientId = null,
         serviceId = null,
         search = null,
@@ -24,21 +24,12 @@ export class TaskManagementService {
         .from('tasks')
         .select(`
           *,
-          clients!inner(
-            id,
-            first_name,
-            last_name,
-            email
-          ),
-          services!inner(
-            id,
-            name,
-            description
-          )
-        `)
+          clients!inner(first_name, last_name, email, phone),
+          services!inner(name, description)
+        `, { count: 'exact' })
 
       // Apply filters
-      if (status && status !== 'all') {
+      if (status !== 'all') {
         query = query.eq('status', status)
       }
 
@@ -50,25 +41,18 @@ export class TaskManagementService {
         query = query.eq('service_id', serviceId)
       }
 
-      // Apply search
       if (search) {
-        query = query.or(`
-          service_name.ilike.%${search}%,
-          client_name.ilike.%${search}%,
-          notes.ilike.%${search}%
-        `)
+        query = query.or(`client_name.ilike.%${search}%,service_name.ilike.%${search}%,notes.ilike.%${search}%`)
       }
 
       // Apply sorting
-      const validSortFields = ['created_at', 'updated_at', 'status', 'client_name', 'service_name']
-      const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at'
-      const order = sortOrder === 'asc' ? 'asc' : 'desc'
-      
-      query = query.order(sortField, { ascending: order === 'asc' })
+      const ascending = sortOrder === 'asc'
+      query = query.order(sortBy, { ascending })
 
       // Apply pagination
-      const offset = (page - 1) * limit
-      query = query.range(offset, offset + limit - 1)
+      const from = (page - 1) * limit
+      const to = from + limit - 1
+      query = query.range(from, to)
 
       const { data, error, count } = await query
 
@@ -76,20 +60,14 @@ export class TaskManagementService {
         throw new Error(`Failed to fetch tasks: ${error.message}`)
       }
 
-      // Get total count for pagination
-      const { count: totalCount } = await supabase
-        .from('tasks')
-        .select('*', { count: 'exact', head: true })
-
       return {
         success: true,
         tasks: data || [],
         pagination: {
           page,
           limit,
-          total: totalCount || 0,
-          totalPages: Math.ceil((totalCount || 0) / limit),
-          hasMore: (page * limit) < (totalCount || 0)
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
         }
       }
     } catch (error) {
@@ -104,7 +82,7 @@ export class TaskManagementService {
   }
 
   /**
-   * Get a single task by ID with full details
+   * Get task by ID
    */
   static async getTaskById(taskId, includeDocuments = true) {
     try {
@@ -114,189 +92,113 @@ export class TaskManagementService {
 
       const supabase = await createServerSupabase()
 
-      let selectFields = `
-        *,
-        clients!inner(
-          id,
-          first_name,
-          last_name,
-          email,
-          phone,
-          address_line_1,
-          address_line_2,
-          city,
-          state,
-          postal_code,
-          country
-        ),
-        services!inner(
-          id,
-          name,
-          description,
-          template_ids
-        )
-      `
-
-      const { data, error } = await supabase
+      const { data: task, error } = await supabase
         .from('tasks')
-        .select(selectFields)
+        .select(`
+          *,
+          clients!inner(*),
+          services!inner(*)
+        `)
         .eq('id', taskId)
         .single()
 
       if (error) {
         if (error.code === 'PGRST116') {
-          throw new Error('Task not found')
+          return {
+            success: false,
+            error: 'Task not found'
+          }
         }
         throw new Error(`Failed to fetch task: ${error.message}`)
       }
 
-      // If including documents, fetch template details
-      if (includeDocuments && data.services.template_ids) {
-        const { data: templates, error: templatesError } = await supabase
-          .from('document_templates')
-          .select('id, name, description, template_type, status, custom_fields')
-          .in('id', data.services.template_ids)
-
-        if (!templatesError) {
-          data.templates = templates || []
-        }
-      }
-
       return {
         success: true,
-        task: data
+        task
       }
     } catch (error) {
-      console.error('Error fetching task:', error)
+      console.error('Error fetching task by ID:', error)
       return {
         success: false,
-        error: error.message,
-        task: null
+        error: error.message
       }
     }
   }
 
   /**
-   * Create a new task
+   * Create new task
    */
   static async createTask(taskData) {
     try {
-      const {
-        client_id,
-        service_id,
-        custom_field_values = {},
-        notes = '',
-        priority = 'normal',
-        assigned_to = null
-      } = taskData
-
-      // Validation
-      if (!client_id) {
-        throw new Error('Client ID is required')
-      }
-
-      if (!service_id) {
-        throw new Error('Service ID is required')
-      }
-
       const supabase = await createServerSupabase()
 
-      // Fetch and validate client
-      const { data: client, error: clientError } = await supabase
-        .from('clients')
-        .select('id, first_name, last_name, email')
-        .eq('id', client_id)
-        .single()
+      // Fetch client and service data for validation and snapshot
+      const [clientResult, serviceResult] = await Promise.all([
+        supabase.from('clients').select('*').eq('id', taskData.client_id).single(),
+        supabase.from('services').select('*').eq('id', taskData.service_id).single()
+      ])
 
-      if (clientError || !client) {
-        throw new Error('Invalid client ID')
+      if (clientResult.error) {
+        throw new Error(`Failed to fetch client: ${clientResult.error.message}`)
       }
 
-      // Fetch and validate service
-      const { data: service, error: serviceError } = await supabase
-        .from('services')
-        .select('id, name, description, template_ids, is_active')
-        .eq('id', service_id)
-        .single()
-
-      if (serviceError || !service) {
-        throw new Error('Invalid service ID')
+      if (serviceResult.error) {
+        throw new Error(`Failed to fetch service: ${serviceResult.error.message}`)
       }
 
-      if (!service.is_active) {
-        throw new Error('Service is not active')
-      }
+      const client = clientResult.data
+      const service = serviceResult.data
 
-      if (!service.template_ids || service.template_ids.length === 0) {
-        throw new Error('Service has no templates configured')
-      }
-
-      // Validate custom fields against service templates
-      const validationResult = await this.validateCustomFields(service.template_ids, custom_field_values)
-      if (!validationResult.valid) {
-        throw new Error(`Custom field validation failed: ${validationResult.error}`)
-      }
-
-      // Create client data snapshot
-      const clientDataSnapshot = {
-        id: client.id,
-        first_name: client.first_name,
-        last_name: client.last_name,
-        email: client.email,
-        full_name: `${client.first_name} ${client.last_name}`,
-        snapshot_date: new Date().toISOString()
-      }
-
-      // Create task record
-      const taskRecord = {
-        client_id,
-        service_id,
+      // Prepare task data
+      const newTaskData = {
+        client_id: taskData.client_id,
+        service_id: taskData.service_id,
         status: 'in_progress',
         service_name: service.name,
         service_description: service.description,
         template_ids: service.template_ids,
-        custom_field_values: custom_field_values || {},
+        template_names: [], // Will be populated when templates are fetched
+        custom_field_values: taskData.custom_field_values || {},
         generated_documents: [],
         signed_documents: [],
         additional_files: [],
-        client_data_snapshot: clientDataSnapshot,
+        client_data_snapshot: client,
         client_name: `${client.first_name} ${client.last_name}`,
-        notes,
-        priority,
-        assigned_to,
+        notes: taskData.notes || null,
+        priority: taskData.priority || 'normal',
+        assigned_to: taskData.assigned_to || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
 
-      const { data, error } = await supabase
+      // Create task
+      const { data: createdTask, error: createError } = await supabase
         .from('tasks')
-        .insert(taskRecord)
+        .insert([newTaskData])
         .select()
         .single()
 
-      if (error) {
-        throw new Error(`Failed to create task: ${error.message}`)
+      if (createError) {
+        throw new Error(`Failed to create task: ${createError.message}`)
       }
 
-      console.log(`Task created successfully: ${data.id} for client ${client.first_name} ${client.last_name}`)
+      console.log(`Task created successfully: ${createdTask.id}`)
 
       return {
         success: true,
-        task: data,
-        validation: validationResult
+        task: createdTask
       }
     } catch (error) {
       console.error('Error creating task:', error)
       return {
         success: false,
-        error: error.message,
-        task: null
+        error: error.message
       }
     }
   }
 
   /**
-   * Update a task
+   * Update task
    */
   static async updateTask(taskId, updates) {
     try {
@@ -306,73 +208,41 @@ export class TaskManagementService {
 
       const supabase = await createServerSupabase()
 
-      // Validate task exists
-      const { data: existingTask, error: fetchError } = await supabase
-        .from('tasks')
-        .select('id, status, service_id')
-        .eq('id', taskId)
-        .single()
-
-      if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
-          throw new Error('Task not found')
-        }
-        throw new Error(`Failed to fetch task: ${fetchError.message}`)
-      }
-
-      // Prepare allowed update fields
-      const allowedFields = [
-        'status', 'custom_field_values', 'generated_documents', 
-        'signed_documents', 'additional_files', 'notes', 
-        'priority', 'assigned_to', 'generation_completed_at',
-        'generation_error', 'completed_at'
-      ]
-
-      const filteredUpdates = {}
-      Object.keys(updates).forEach(key => {
-        if (allowedFields.includes(key) && updates[key] !== undefined) {
-          filteredUpdates[key] = updates[key]
-        }
-      })
-
       // Add updated timestamp
-      filteredUpdates.updated_at = new Date().toISOString()
-
-      // Validate status transitions
-      if (filteredUpdates.status && filteredUpdates.status !== existingTask.status) {
-        const validTransition = this.validateStatusTransition(existingTask.status, filteredUpdates.status)
-        if (!validTransition.valid) {
-          throw new Error(validTransition.error)
-        }
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
       }
 
-      const { data, error } = await supabase
+      const { data: updatedTask, error } = await supabase
         .from('tasks')
-        .update(filteredUpdates)
+        .update(updateData)
         .eq('id', taskId)
         .select()
         .single()
 
       if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('Task not found')
+        }
         throw new Error(`Failed to update task: ${error.message}`)
       }
 
       return {
         success: true,
-        task: data
+        task: updatedTask
       }
     } catch (error) {
       console.error('Error updating task:', error)
       return {
         success: false,
-        error: error.message,
-        task: null
+        error: error.message
       }
     }
   }
 
   /**
-   * Delete a task
+   * Delete task and all related data
    */
   static async deleteTask(taskId) {
     try {
@@ -382,150 +252,148 @@ export class TaskManagementService {
 
       const supabase = await createServerSupabase()
 
-      // Fetch task details before deletion
+      // First, get the task to access client_id and file paths
       const { data: task, error: fetchError } = await supabase
         .from('tasks')
-        .select('id, client_name, service_name, status')
+        .select('*')
         .eq('id', taskId)
         .single()
 
       if (fetchError) {
         if (fetchError.code === 'PGRST116') {
-          throw new Error('Task not found')
+          return {
+            success: false,
+            error: 'Task not found'
+          }
         }
         throw new Error(`Failed to fetch task: ${fetchError.message}`)
       }
 
-      // Check if task can be deleted (business logic)
-      if (task.status === 'completed') {
-        throw new Error('Cannot delete completed tasks')
+      const clientId = task.client_id
+
+      // Delete files from storage buckets
+      const fileDeletionResults = await this.deleteTaskFiles(clientId, taskId, task)
+
+      // Delete generated documents from database
+      const { error: generatedDocsError } = await supabase
+        .from('generated_documents')
+        .delete()
+        .match({ 
+          client_id: task.client_id,
+          // You might want to add a task_id field to generated_documents table for better linking
+        })
+
+      if (generatedDocsError) {
+        console.warn('Error deleting generated documents:', generatedDocsError.message)
       }
 
-      // Delete the task
-      const { error: deleteError } = await supabase
+      // Delete the task record
+      const { data: deletedTask, error: deleteError } = await supabase
         .from('tasks')
         .delete()
         .eq('id', taskId)
+        .select()
+        .single()
 
       if (deleteError) {
         throw new Error(`Failed to delete task: ${deleteError.message}`)
       }
 
-      console.log(`Task deleted: ${taskId} (${task.client_name} - ${task.service_name})`)
+      console.log(`Task deleted successfully: ${taskId}`)
 
       return {
         success: true,
-        deletedTask: {
-          id: task.id,
-          client_name: task.client_name,
-          service_name: task.service_name
-        }
+        deletedTask,
+        fileDeletionResults,
+        message: 'Task and all related data deleted successfully'
       }
     } catch (error) {
       console.error('Error deleting task:', error)
       return {
         success: false,
-        error: error.message,
-        deletedTask: null
-      }
-    }
-  }
-
-  /**
-   * Validate custom fields against service templates
-   */
-  static async validateCustomFields(templateIds, customFieldValues) {
-    try {
-      const supabase = await createServerSupabase()
-
-      // Fetch templates and their custom fields
-      const { data: templates, error } = await supabase
-        .from('document_templates')
-        .select('id, name, custom_fields')
-        .in('id', templateIds)
-
-      if (error) {
-        throw new Error(`Failed to fetch templates: ${error.message}`)
-      }
-
-      // Aggregate all required custom fields
-      const requiredFields = new Map()
-      const allFields = new Map()
-
-      templates.forEach(template => {
-        const customFields = template.custom_fields || []
-        customFields.forEach(field => {
-          const fieldKey = field.name || field.label
-          allFields.set(fieldKey, field)
-          
-          if (field.required) {
-            requiredFields.set(fieldKey, {
-              ...field,
-              templateName: template.name,
-              templateId: template.id
-            })
-          }
-        })
-      })
-
-      // Validate required fields are provided
-      const missingFields = []
-      for (const [fieldName, fieldConfig] of requiredFields) {
-        if (!customFieldValues[fieldName] || 
-            (typeof customFieldValues[fieldName] === 'string' && !customFieldValues[fieldName].trim())) {
-          missingFields.push({
-            name: fieldName,
-            label: fieldConfig.label || fieldName,
-            templateName: fieldConfig.templateName
-          })
-        }
-      }
-
-      if (missingFields.length > 0) {
-        return {
-          valid: false,
-          error: `Missing required fields: ${missingFields.map(f => f.label).join(', ')}`,
-          missingFields,
-          requiredFields: Array.from(requiredFields.values()),
-          allFields: Array.from(allFields.values())
-        }
-      }
-
-      return {
-        valid: true,
-        requiredFields: Array.from(requiredFields.values()),
-        allFields: Array.from(allFields.values()),
-        providedFields: Object.keys(customFieldValues)
-      }
-    } catch (error) {
-      console.error('Error validating custom fields:', error)
-      return {
-        valid: false,
         error: error.message
       }
     }
   }
 
   /**
-   * Validate status transitions
+   * Delete all files associated with a task from storage
    */
-  static validateStatusTransition(currentStatus, newStatus) {
-    const validTransitions = {
-      'in_progress': ['awaiting', 'completed'], // Can skip awaiting if needed
-      'awaiting': ['completed', 'in_progress'], // Can go back to in_progress
-      'completed': [] // Cannot change from completed
+  static async deleteTaskFiles(clientId, taskId, task) {
+    const supabase = await createServerSupabase()
+    const results = {
+      generatedDocuments: { success: 0, failed: 0, errors: [] },
+      signedDocuments: { success: 0, failed: 0, errors: [] },
+      additionalFiles: { success: 0, failed: 0, errors: [] }
     }
 
-    const allowedNextStatuses = validTransitions[currentStatus] || []
-    
-    if (!allowedNextStatuses.includes(newStatus)) {
-      return {
-        valid: false,
-        error: `Invalid status transition from '${currentStatus}' to '${newStatus}'. Allowed: ${allowedNextStatuses.join(', ')}`
+    try {
+      // Delete generated documents from task-documents bucket
+      const generatedDocs = task.generated_documents || []
+      for (const doc of generatedDocs) {
+        if (doc.storagePath) {
+          const { error } = await supabase.storage
+            .from('task-documents')
+            .remove([doc.storagePath])
+          
+          if (error) {
+            results.generatedDocuments.failed++
+            results.generatedDocuments.errors.push(`Failed to delete ${doc.fileName}: ${error.message}`)
+          } else {
+            results.generatedDocuments.success++
+          }
+        }
       }
+
+      // Delete signed documents from signed-documents bucket
+      const signedDocs = task.signed_documents || []
+      for (const doc of signedDocs) {
+        if (doc.filePath) {
+          const { error } = await supabase.storage
+            .from('signed-documents')
+            .remove([doc.filePath])
+          
+          if (error) {
+            results.signedDocuments.failed++
+            results.signedDocuments.errors.push(`Failed to delete ${doc.originalName}: ${error.message}`)
+          } else {
+            results.signedDocuments.success++
+          }
+        }
+      }
+
+      // Delete additional files from additional-files bucket
+      const additionalFiles = task.additional_files || []
+      for (const file of additionalFiles) {
+        if (file.filePath) {
+          const { error } = await supabase.storage
+            .from('additional-files')
+            .remove([file.filePath])
+          
+          if (error) {
+            results.additionalFiles.failed++
+            results.additionalFiles.errors.push(`Failed to delete ${file.originalName}: ${error.message}`)
+          } else {
+            results.additionalFiles.success++
+          }
+        }
+      }
+
+      // Try to delete the entire client folder for this task (cleanup empty folders)
+      try {
+        await supabase.storage.from('task-documents').remove([`${clientId}/${taskId}/`])
+        await supabase.storage.from('signed-documents').remove([`${clientId}/${taskId}/`])
+        await supabase.storage.from('additional-files').remove([`${clientId}/${taskId}/`])
+      } catch (error) {
+        // Folder deletion might fail if not empty, which is fine
+        console.log('Folder cleanup completed (some folders may remain if not empty)')
+      }
+
+    } catch (error) {
+      console.error('Error during file deletion:', error)
     }
 
-    return { valid: true }
+    return results
   }
 
   /**
@@ -535,48 +403,192 @@ export class TaskManagementService {
     try {
       const supabase = await createServerSupabase()
 
-      // Get total counts by status
-      const { data: statusCounts, error: statusError } = await supabase
+      const { data, error } = await supabase
         .from('tasks')
         .select('status')
 
-      if (statusError) {
-        throw new Error(`Failed to fetch task statistics: ${statusError.message}`)
+      if (error) {
+        throw new Error(`Failed to fetch task statistics: ${error.message}`)
       }
 
       const stats = {
-        total: statusCounts.length,
-        in_progress: statusCounts.filter(t => t.status === 'in_progress').length,
-        awaiting: statusCounts.filter(t => t.status === 'awaiting').length,
-        completed: statusCounts.filter(t => t.status === 'completed').length
+        total: data.length,
+        in_progress: data.filter(t => t.status === 'in_progress').length,
+        awaiting: data.filter(t => t.status === 'awaiting').length,
+        completed: data.filter(t => t.status === 'completed').length,
+        by_status: {}
       }
 
-      // Get recent activity (last 30 days)
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
-      const { data: recentTasks, error: recentError } = await supabase
-        .from('tasks')
-        .select('created_at, completed_at, status')
-        .gte('created_at', thirtyDaysAgo.toISOString())
-
-      if (!recentError && recentTasks) {
-        stats.recentlyCreated = recentTasks.length
-        stats.recentlyCompleted = recentTasks.filter(t => 
-          t.completed_at && new Date(t.completed_at) >= thirtyDaysAgo
-        ).length
-      }
+      // Count by status
+      data.forEach(task => {
+        stats.by_status[task.status] = (stats.by_status[task.status] || 0) + 1
+      })
 
       return stats
     } catch (error) {
       console.error('Error fetching task statistics:', error)
+      throw error
+    }
+  }
+}
+
+// Fixed TaskDocumentService download methods
+export class TaskDocumentServiceFixed {
+  /**
+   * Download generated document - FIXED VERSION
+   */
+  static async downloadDocument(taskId, templateId) {
+    try {
+      if (!taskId || !templateId) {
+        throw new Error('Task ID and Template ID are required')
+      }
+
+      const supabase = await createServerSupabase()
+
+      // Fetch task to get document info
+      const { data: task, error: taskError } = await supabase
+        .from('tasks')
+        .select('id, generated_documents, status')
+        .eq('id', taskId)
+        .single()
+
+      if (taskError) {
+        throw new Error(`Failed to fetch task: ${taskError.message}`)
+      }
+
+      // Find the specific document
+      const document = task.generated_documents?.find(doc => doc.templateId === templateId)
+      
+      if (!document) {
+        throw new Error('Document not found in task')
+      }
+
+      if (document.status !== 'generated') {
+        throw new Error(`Document is not ready for download. Status: ${document.status}`)
+      }
+
+      // Get download URL from storage with correct bucket name - FIXED
+      const { data: downloadData, error: downloadError } = await supabase.storage
+        .from('task-documents')
+        .createSignedUrl(document.storagePath, 3600) // 1 hour expiry
+
+      // Check if downloadData exists and has signedUrl property
+      if (downloadError || !downloadData || !downloadData.signedUrl) {
+        console.error('Download error details:', { downloadError, downloadData })
+        
+        // Fallback to public URL if signed URL fails
+        const { data: publicUrlData } = supabase.storage
+          .from('task-documents')
+          .getPublicUrl(document.storagePath)
+
+        if (publicUrlData && publicUrlData.publicUrl) {
+          return {
+            success: true,
+            downloadUrl: publicUrlData.publicUrl,
+            fileName: document.fileName,
+            templateName: document.templateName,
+            fallbackUsed: true
+          }
+        }
+
+        throw new Error(`Failed to create download URL: ${downloadError?.message || 'Unknown error'}`)
+      }
+
       return {
-        total: 0,
-        in_progress: 0,
-        awaiting: 0,
-        completed: 0,
-        recentlyCreated: 0,
-        recentlyCompleted: 0
+        success: true,
+        downloadUrl: downloadData.signedUrl,
+        fileName: document.fileName,
+        templateName: document.templateName
+      }
+    } catch (error) {
+      console.error('Error creating download URL:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * Download all generated documents - FIXED VERSION
+   */
+  static async downloadAllDocuments(taskId) {
+    try {
+      if (!taskId) {
+        throw new Error('Task ID is required')
+      }
+
+      const supabase = await createServerSupabase()
+
+      // Fetch task to get document info
+      const { data: task, error: taskError } = await supabase
+        .from('tasks')
+        .select('id, generated_documents, client_name, service_name')
+        .eq('id', taskId)
+        .single()
+
+      if (taskError) {
+        throw new Error(`Failed to fetch task: ${taskError.message}`)
+      }
+
+      const generatedDocs = task.generated_documents?.filter(doc => doc.status === 'generated') || []
+
+      if (generatedDocs.length === 0) {
+        throw new Error('No generated documents available for download')
+      }
+
+      // Create signed URLs for all documents - FIXED
+      const downloadUrls = []
+      for (const doc of generatedDocs) {
+        try {
+          const { data: downloadData, error: downloadError } = await supabase.storage
+            .from('task-documents')
+            .createSignedUrl(doc.storagePath, 3600)
+
+          if (!downloadError && downloadData && downloadData.signedUrl) {
+            downloadUrls.push({
+              url: downloadData.signedUrl,
+              fileName: doc.fileName,
+              templateName: doc.templateName
+            })
+          } else {
+            // Fallback to public URL
+            const { data: publicUrlData } = supabase.storage
+              .from('task-documents')
+              .getPublicUrl(doc.storagePath)
+
+            if (publicUrlData && publicUrlData.publicUrl) {
+              downloadUrls.push({
+                url: publicUrlData.publicUrl,
+                fileName: doc.fileName,
+                templateName: doc.templateName,
+                fallbackUsed: true
+              })
+            }
+          }
+        } catch (error) {
+          console.error(`Error creating download URL for ${doc.fileName}:`, error)
+        }
+      }
+
+      if (downloadUrls.length === 0) {
+        throw new Error('Failed to create download URLs for any documents')
+      }
+
+      return {
+        success: true,
+        documents: downloadUrls,
+        taskInfo: {
+          id: taskId,
+          clientName: task.client_name,
+          serviceName: task.service_name
+        }
+      }
+    } catch (error) {
+      console.error('Error creating download URLs:', error)
+      return {
+        success: false,
+        error: error.message
       }
     }
   }

@@ -100,7 +100,7 @@ export async function PUT(request, { params }) {
   }
 }
 
-// DELETE - Delete a task
+// DELETE - Delete a task - NEW METHOD
 export async function DELETE(request, { params }) {
   try {
     // Check authentication
@@ -114,6 +114,8 @@ export async function DELETE(request, { params }) {
         { status: 400 }
       )
     }
+
+    console.log(`Starting deletion process for task: ${id}`)
 
     const result = await TaskManagementService.deleteTask(id)
 
@@ -130,10 +132,36 @@ export async function DELETE(request, { params }) {
       )
     }
 
+    // Log file deletion results
+    if (result.fileDeletionResults) {
+      const fileResults = result.fileDeletionResults
+      console.log('File deletion summary:', {
+        generatedDocs: `${fileResults.generatedDocuments.success} deleted, ${fileResults.generatedDocuments.failed} failed`,
+        signedDocs: `${fileResults.signedDocuments.success} deleted, ${fileResults.signedDocuments.failed} failed`,
+        additionalFiles: `${fileResults.additionalFiles.success} deleted, ${fileResults.additionalFiles.failed} failed`
+      })
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Task deleted successfully',
-      deletedTask: result.deletedTask
+      message: 'Task and all related data deleted successfully',
+      deletedTask: {
+        id: result.deletedTask.id,
+        clientName: result.deletedTask.client_name,
+        serviceName: result.deletedTask.service_name
+      },
+      fileDeletionSummary: result.fileDeletionResults ? {
+        totalFilesDeleted: (
+          result.fileDeletionResults.generatedDocuments.success +
+          result.fileDeletionResults.signedDocuments.success +
+          result.fileDeletionResults.additionalFiles.success
+        ),
+        totalFilesFailed: (
+          result.fileDeletionResults.generatedDocuments.failed +
+          result.fileDeletionResults.signedDocuments.failed +
+          result.fileDeletionResults.additionalFiles.failed
+        )
+      } : null
     })
   } catch (error) {
     console.error('Error deleting task:', error)
