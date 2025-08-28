@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react'
 import TaskCard from './TaskCard'
 import TaskStatusBadge from './TaskStatusBadge'
+import TaskCreationModal from './TaskCreationModal'
+import TaskDetailModal from './TaskDetailModal'
 
 export default function TasksContent() {
   const [tasks, setTasks] = useState([])
@@ -11,37 +13,55 @@ export default function TasksContent() {
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [sortBy, setSortBy] = useState('newest')
+  const [sortBy, setSortBy] = useState('created_at')
+  const [sortOrder, setSortOrder] = useState('desc')
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalTasks, setTotalTasks] = useState(0)
+  const [pagination, setPagination] = useState(null)
+  
+  // Modal states
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedTask, setSelectedTask] = useState(null)
 
   const limit = 10 // Tasks per page
 
   // Fetch tasks from API
   useEffect(() => {
     fetchTasks()
-  }, [currentPage, searchTerm, statusFilter])
+  }, [currentPage, searchTerm, statusFilter, sortBy, sortOrder])
 
   const fetchTasks = async () => {
     setLoading(true)
     setError('')
     
     try {
-      // TODO: Implement API call to fetch tasks
-      // const response = await fetch(`/api/tasks?page=${currentPage}&limit=${limit}&search=${searchTerm}&status=${statusFilter}`)
-      // const data = await response.json()
-      // setTasks(data.tasks)
-      // setTotalTasks(data.total)
-      // setTotalPages(data.totalPages)
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString(),
+        status: statusFilter,
+        search: searchTerm,
+        sortBy,
+        sortOrder
+      })
+
+      const response = await fetch(`/api/tasks?${params}`)
       
-      // For now, just set empty state
-      setTasks([])
-      setTotalTasks(0)
-      setTotalPages(1)
-      setLoading(false)
+      if (!response.ok) {
+        throw new Error('Failed to fetch tasks')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setTasks(data.tasks || [])
+        setPagination(data.pagination)
+      } else {
+        throw new Error(data.error || 'Failed to fetch tasks')
+      }
     } catch (error) {
       setError(error.message)
+      setTasks([])
+    } finally {
       setLoading(false)
     }
   }
@@ -51,9 +71,64 @@ export default function TasksContent() {
     setCurrentPage(1) // Reset to first page when searching
   }
 
+  const handleStatusFilter = (status) => {
+    setStatusFilter(status)
+    setCurrentPage(1)
+  }
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(field)
+      setSortOrder('desc')
+    }
+    setCurrentPage(1)
+  }
+
   const handleCreateTask = () => {
-    // Will implement task creation modal later
-    console.log('Create new task clicked')
+    setShowCreateModal(true)
+  }
+
+  const handleTaskCreated = (newTask) => {
+    // Add the new task to the beginning of the list
+    setTasks(prev => [newTask, ...prev])
+    
+    // Show success message
+    showSuccessMessage(`Task created successfully for ${newTask.client_name}`)
+    
+    // Refresh tasks to get updated data
+    fetchTasks()
+  }
+
+  const handleViewTask = (task) => {
+    setSelectedTask(task)
+    setShowDetailModal(true)
+  }
+
+  const handleTaskUpdated = (updatedTask) => {
+    // Update the specific task in the tasks array
+    setTasks(prev => prev.map(task => 
+      task.id === updatedTask.id ? updatedTask : task
+    ))
+    
+    // Update the selected task if it's the same one
+    if (selectedTask && selectedTask.id === updatedTask.id) {
+      setSelectedTask(updatedTask)
+    }
+  }
+
+  const showSuccessMessage = (message) => {
+    const successDiv = document.createElement('div')
+    successDiv.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50'
+    successDiv.textContent = message
+    document.body.appendChild(successDiv)
+    
+    setTimeout(() => {
+      if (document.body.contains(successDiv)) {
+        document.body.removeChild(successDiv)
+      }
+    }, 3000)
   }
 
   const formatDate = (dateString) => {
@@ -66,46 +141,17 @@ export default function TasksContent() {
     })
   }
 
-  // Filter and sort tasks
-  const filteredTasks = tasks
-    .filter(task => {
-      const matchesSearch = task.trustType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           task.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           task.templateName.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesStatus = statusFilter === 'all' || task.status === statusFilter
-      return matchesSearch && matchesStatus
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'newest': return new Date(b.createdAt) - new Date(a.createdAt)
-        case 'oldest': return new Date(a.createdAt) - new Date(b.createdAt)
-        case 'client': return a.clientName.localeCompare(b.clientName)
-        case 'status': return a.status.localeCompare(b.status)
-        default: return 0
-      }
-    })
-
   // Stats calculation from actual tasks data
   const stats = [
     {
       name: 'Total Tasks',
-      value: tasks.length,
+      value: pagination?.total || 0,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
         </svg>
       ),
       color: 'text-gray-600'
-    },
-    {
-      name: 'Completed',
-      value: tasks.filter(t => t.status === 'completed').length,
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      color: 'text-green-600'
     },
     {
       name: 'In Progress',
@@ -118,14 +164,24 @@ export default function TasksContent() {
       color: 'text-blue-600'
     },
     {
-      name: 'Failed',
-      value: tasks.filter(t => t.status === 'failed').length,
+      name: 'Awaiting',
+      value: tasks.filter(t => t.status === 'awaiting').length,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      color: 'text-red-600'
+      color: 'text-yellow-600'
+    },
+    {
+      name: 'Completed',
+      value: tasks.filter(t => t.status === 'completed').length,
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      color: 'text-green-600'
     }
   ]
 
@@ -135,10 +191,10 @@ export default function TasksContent() {
       <div className="mb-6 flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Trust Distribution Tasks
+            Tasks
           </h1>
           <p className="text-gray-600">
-            Manage trust document generation and distribution workflows
+            Manage document generation and distribution workflows
           </p>
         </div>
         <button
@@ -187,7 +243,7 @@ export default function TasksContent() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search tasks by trust type, client, or template..."
+                  placeholder="Search tasks by service, client, or notes..."
                   value={searchTerm}
                   onChange={handleSearch}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -199,28 +255,35 @@ export default function TasksContent() {
             <div className="lg:w-48">
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => handleStatusFilter(e.target.value)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">All Status</option>
-                <option value="draft">Draft</option>
                 <option value="in_progress">In Progress</option>
+                <option value="awaiting">Awaiting</option>
                 <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
               </select>
             </div>
             
             {/* Sort */}
             <div className="lg:w-48">
               <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                value={`${sortBy}-${sortOrder}`}
+                onChange={(e) => {
+                  const [field, order] = e.target.value.split('-')
+                  setSortBy(field)
+                  setSortOrder(order)
+                  setCurrentPage(1)
+                }}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="client">Client A-Z</option>
-                <option value="status">Status</option>
+                <option value="created_at-desc">Newest First</option>
+                <option value="created_at-asc">Oldest First</option>
+                <option value="client_name-asc">Client A-Z</option>
+                <option value="client_name-desc">Client Z-A</option>
+                <option value="service_name-asc">Service A-Z</option>
+                <option value="status-asc">Status</option>
+                <option value="priority-desc">Priority</option>
               </select>
             </div>
           </div>
@@ -242,9 +305,18 @@ export default function TasksContent() {
               </svg>
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Tasks</h3>
-            <p className="text-gray-600">{error}</p>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={fetchTasks}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Retry
+            </button>
           </div>
-        ) : filteredTasks.length === 0 ? (
+        ) : tasks.length === 0 ? (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -253,7 +325,7 @@ export default function TasksContent() {
             <p className="mt-1 text-sm text-gray-600">
               {searchTerm || statusFilter !== 'all' 
                 ? 'Try adjusting your search or filter criteria.' 
-                : 'Get started by creating your first trust distribution task.'
+                : 'Get started by creating your first task.'
               }
             </p>
             {!searchTerm && statusFilter === 'all' && (
@@ -272,11 +344,11 @@ export default function TasksContent() {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {filteredTasks.map((task) => (
+            {tasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
-                onView={(task) => console.log('View task:', task)}
+                onView={handleViewTask}
                 onRetry={(task) => console.log('Retry task:', task)}
                 onDownload={(task) => console.log('Download task:', task)}
               />
@@ -285,34 +357,85 @@ export default function TasksContent() {
         )}
       </div>
 
-      {/* Pagination - will be implemented when needed */}
-      {totalPages > 1 && (
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-700">
-              Showing <span className="font-medium">{((currentPage - 1) * limit) + 1}</span> to{' '}
-              <span className="font-medium">{Math.min(currentPage * limit, totalTasks)}</span> of{' '}
-              <span className="font-medium">{totalTasks}</span> tasks
+              Showing page <span className="font-medium">{pagination.page}</span> of{' '}
+              <span className="font-medium">{pagination.totalPages}</span>{' '}
+              (<span className="font-medium">{pagination.total}</span> total tasks)
             </p>
           </div>
           <div className="flex space-x-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+              disabled={currentPage === 1 || loading}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
             >
               Previous
             </button>
+            
+            {/* Page numbers */}
+            <div className="flex space-x-1">
+              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                const pageNum = i + 1
+                const isActive = pageNum === currentPage
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    disabled={loading}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors disabled:cursor-not-allowed ${
+                      isActive
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+              
+              {pagination.totalPages > 5 && (
+                <>
+                  <span className="px-2 py-2 text-gray-500">...</span>
+                  <button
+                    onClick={() => setCurrentPage(pagination.totalPages)}
+                    disabled={currentPage === pagination.totalPages || loading}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed"
+                  >
+                    {pagination.totalPages}
+                  </button>
+                </>
+              )}
+            </div>
+            
             <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, pagination.totalPages))}
+              disabled={currentPage === pagination.totalPages || loading}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
             >
               Next
             </button>
           </div>
         </div>
       )}
+
+      {/* Task Creation Modal */}
+      <TaskCreationModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onTaskCreated={handleTaskCreated}
+      />
+
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        task={selectedTask}
+        onTaskUpdated={handleTaskUpdated}
+      />
     </div>
   )
 }
