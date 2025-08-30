@@ -29,10 +29,6 @@ export class TaskDocumentService {
         throw new Error(`Failed to fetch task: ${taskError.message}`)
       }
 
-      if (task.status !== 'in_progress') {
-        throw new Error(`Task must be in 'in_progress' status to generate documents. Current status: ${task.status}`)
-      }
-
       // Fetch template details
       const { data: templates, error: templatesError } = await supabase
         .from('document_templates')

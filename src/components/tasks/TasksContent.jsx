@@ -20,6 +20,7 @@ export default function TasksContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [generating, setGenerating] = useState(false)
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -93,15 +94,53 @@ export default function TasksContent() {
     setShowCreateModal(true)
   }
 
-  const handleTaskCreated = (newTask) => {
-    // Add the new task to the beginning of the list
-    setTasks(prev => [newTask, ...prev])
-    
-    // Show success message
-    showSuccessMessage(`Task created successfully for ${newTask.client_name}`)
-    
-    // Refresh tasks to get updated data
-    fetchTasks()
+  const handleTaskCreated = async (newTask) => {
+    try {
+      // Set generating state
+      setGenerating(true)
+      
+      // Automatically generate documents for the new task
+      const generateResponse = await fetch(`/api/tasks/${newTask.id}/generate`, {
+        method: 'POST'
+      })
+
+      let generatedTask = newTask
+      
+      if (generateResponse.ok) {
+        const generateData = await generateResponse.json()
+        if (generateData.success) {
+          generatedTask = generateData.task
+          showSuccessMessage(`Task created and ${generateData.documentsGenerated} documents generated successfully!`)
+        } else {
+          console.error('Document generation failed:', generateData.error)
+          showWarningMessage(`Task created successfully, but document generation failed: ${generateData.error}`)
+        }
+      } else {
+        console.error('Document generation request failed')
+        showWarningMessage('Task created successfully, but document generation failed')
+      }
+      
+      // Update tasks list with the generated task
+      setTasks(prev => [generatedTask, ...prev.slice(1)]) // Replace first item (optimistic update)
+      
+      // Open the task detail modal automatically
+      setSelectedTask(generatedTask)
+      setShowDetailModal(true)
+      
+    } catch (error) {
+      console.error('Error during task creation flow:', error)
+      showWarningMessage('Task created successfully, but there was an issue with document generation')
+      
+      // Still open the detail modal with the original task
+      setSelectedTask(newTask)
+      setShowDetailModal(true)
+    } finally {
+      setGenerating(false)
+      // Refresh the full tasks list to ensure consistency
+      setTimeout(() => {
+        fetchTasks()
+      }, 1000)
+    }
   }
 
   const handleViewTask = (task) => {
@@ -131,7 +170,20 @@ export default function TasksContent() {
       if (document.body.contains(successDiv)) {
         document.body.removeChild(successDiv)
       }
-    }, 3000)
+    }, 5000) // Show for 5 seconds for longer messages
+  }
+
+  const showWarningMessage = (message) => {
+    const warningDiv = document.createElement('div')
+    warningDiv.className = 'fixed top-4 right-4 bg-yellow-600 text-white px-4 py-2 rounded shadow-lg z-50'
+    warningDiv.textContent = message
+    document.body.appendChild(warningDiv)
+    
+    setTimeout(() => {
+      if (document.body.contains(warningDiv)) {
+        document.body.removeChild(warningDiv)
+      }
+    }, 5000)
   }
 
   const formatDate = (dateString) => {
@@ -243,14 +295,43 @@ export default function TasksContent() {
         </div>
         <button
           onClick={handleCreateTask}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={generating}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
         >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          New Task
+          {generating ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Generating...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Task
+            </>
+          )}
         </button>
       </div>
+
+      {/* Document Generation Status - Show when generating */}
+      {generating && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <div className="text-blue-800">
+              <p className="font-medium">Generating Documents</p>
+              <p className="text-sm">Creating task and generating documents automatically...</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { TaskManagementService } from '@/lib/services/taskManagementService'
+import { TaskWorkflowService } from '@/lib/services/taskWorkflowService'
 
 // GET - Fetch all tasks with filtering and pagination
 export async function GET(request) {
@@ -55,7 +56,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Create a new task
+// POST - Create a new task and automatically generate documents
 export async function POST(request) {
   try {
     // Check authentication
@@ -78,25 +79,87 @@ export async function POST(request) {
       )
     }
 
-    const result = await TaskManagementService.createTask(taskData)
+    console.log('Creating task with automatic document generation...')
 
-    if (!result.success) {
+    // Step 1: Create the task
+    const createResult = await TaskManagementService.createTask(taskData)
+
+    if (!createResult.success) {
       return NextResponse.json(
-        { error: result.error },
+        { error: createResult.error },
         { status: 400 }
       )
     }
 
+    const createdTask = createResult.task
+    console.log(`Task created successfully: ${createdTask.id}`)
+
+    // Step 2: Automatically generate documents
+    let finalTask = createdTask
+    let generationWarnings = []
+    let documentsGenerated = 0
+
+    try {
+      console.log(`Starting automatic document generation for task: ${createdTask.id}`)
+      
+      const generateResult = await TaskWorkflowService.startDocumentGeneration(createdTask.id)
+      
+      if (generateResult.success) {
+        finalTask = generateResult.task
+        documentsGenerated = generateResult.documentsGenerated || 0
+        console.log(`Successfully generated ${documentsGenerated} documents for task: ${createdTask.id}`)
+        
+        if (generateResult.warnings && generateResult.warnings.length > 0) {
+          generationWarnings = generateResult.warnings
+          console.warn('Document generation warnings:', generationWarnings)
+        }
+      } else {
+        // Document generation failed, but task was created
+        console.error('Document generation failed:', generateResult.error)
+        generationWarnings.push(`Document generation failed: ${generateResult.error}`)
+        
+        // Check if it's a partial generation failure
+        if (generateResult.partialGeneration && generateResult.task) {
+          finalTask = generateResult.task
+        }
+      }
+    } catch (generateError) {
+      console.error('Error during automatic document generation:', generateError)
+      generationWarnings.push(`Document generation error: ${generateError.message}`)
+    }
+
+    // Prepare response
     const response = {
       success: true,
-      task: result.task
+      task: finalTask,
+      documentsGenerated,
+      message: documentsGenerated > 0 
+        ? `Task created successfully and ${documentsGenerated} documents generated automatically`
+        : 'Task created successfully, but document generation failed'
     }
 
-    if (result.validation && result.validation.warnings) {
-      response.warnings = result.validation.warnings
+    // Add warnings from both task creation and document generation
+    const allWarnings = []
+    if (createResult.validation && createResult.validation.warnings) {
+      allWarnings.push(...createResult.validation.warnings)
+    }
+    if (generationWarnings.length > 0) {
+      allWarnings.push(...generationWarnings)
     }
 
-    return NextResponse.json(response, { status: 201 })
+    if (allWarnings.length > 0) {
+      response.warnings = allWarnings
+    }
+
+    // Return appropriate status code
+    if (documentsGenerated === 0 && generationWarnings.length > 0) {
+      // Task created but generation failed - return 207 Multi-Status
+      return NextResponse.json(response, { status: 207 })
+    } else {
+      // Full success
+      return NextResponse.json(response, { status: 201 })
+    }
+
   } catch (error) {
     console.error('Error creating task:', error)
     return NextResponse.json(

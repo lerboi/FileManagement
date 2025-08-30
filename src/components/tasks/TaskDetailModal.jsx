@@ -6,6 +6,7 @@ import TaskStatusBadge from './TaskStatusBadge'
 
 export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }) {
   const [loading, setLoading] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
   const [error, setError] = useState('')
   const [taskDetail, setTaskDetail] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
@@ -13,7 +14,7 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
   useEffect(() => {
     if (isOpen && task) {
       fetchTaskDetail()
-      setActiveTab('overview')
+      setActiveTab('documents') // Default to documents tab since they should be ready
       setError('')
     }
   }, [isOpen, task])
@@ -54,7 +55,7 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
   const handleGenerateDocuments = async () => {
     if (!taskDetail) return
 
-    setLoading(true)
+    setRegenerating(true)
     setError('')
 
     try {
@@ -78,9 +79,22 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
       }
     } catch (error) {
       setError(error.message)
+      showErrorMessage(`Failed to generate documents: ${error.message}`)
     } finally {
-      setLoading(false)
+      setRegenerating(false)
     }
+  }
+
+  const handleRetryGeneration = async () => {
+    if (!taskDetail) return
+
+    const confirmed = window.confirm(
+      'Are you sure you want to retry document generation? This will replace any existing generated documents.'
+    )
+
+    if (!confirmed) return
+
+    await handleGenerateDocuments()
   }
 
   const handleDownloadDocument = async (templateId, action = 'preview') => {
@@ -126,6 +140,7 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
       }
     } catch (error) {
       setError(error.message)
+      showErrorMessage(`Failed to ${action} document: ${error.message}`)
     }
   }
 
@@ -144,107 +159,9 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
       })
     } catch (error) {
       setError(error.message)
+      showErrorMessage(`Failed to preview documents: ${error.message}`)
     }
   }
-
-  // UPDATE THE DOCUMENTS TAB JSX TO INCLUDE PREVIEW AND DOWNLOAD BUTTONS
-  {activeTab === 'documents' && (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-gray-900">Documents</h3>
-        <div className="flex space-x-2">
-          {taskDetail.status === 'in_progress' && (
-            <button
-              onClick={handleGenerateDocuments}
-              disabled={loading}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-            >
-              {loading ? (
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              )}
-              {loading ? 'Generating...' : 'Generate Documents'}
-            </button>
-          )}
-          
-          {(taskDetail.generated_documents?.length > 0) && (
-            <button
-              onClick={handleDownloadAll}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              Preview All
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Generated Documents List */}
-      <div className="space-y-4">
-        {taskDetail.generated_documents && taskDetail.generated_documents.length > 0 ? (
-          taskDetail.generated_documents.map((doc, index) => (
-            <div key={index} className="border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900">{doc.templateName}</h4>
-                  <p className="text-xs text-gray-600">{doc.fileName}</p>
-                  <p className="text-xs text-gray-500">
-                    Status: <span className="capitalize">{doc.status}</span>
-                    {doc.generatedAt && ` • Generated: ${formatDate(doc.generatedAt)}`}
-                  </p>
-                </div>
-                {doc.status === 'generated' && (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleDownloadDocument(doc.templateId, 'preview')}
-                      className="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm text-blue-700 bg-blue-50 hover:bg-blue-100"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      Preview
-                    </button>
-                    <button
-                      onClick={() => handleDownloadDocument(doc.templateId, 'download')}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3" />
-                      </svg>
-                      Download
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-center py-8">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No Documents Generated</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {taskDetail.status === 'in_progress' 
-                ? 'Click "Generate Documents" to create documents from templates.'
-                : 'Documents will appear here once generated.'
-              }
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  )}
 
   const handleUploadSigned = () => {
     // This would open a file upload modal
@@ -287,6 +204,7 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
       }
     } catch (error) {
       setError(error.message)
+      showErrorMessage(`Failed to complete task: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -302,7 +220,20 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
       if (document.body.contains(successDiv)) {
         document.body.removeChild(successDiv)
       }
-    }, 3000)
+    }, 5000)
+  }
+
+  const showErrorMessage = (message) => {
+    const errorDiv = document.createElement('div')
+    errorDiv.className = 'fixed top-4 right-4 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50'
+    errorDiv.textContent = message
+    document.body.appendChild(errorDiv)
+    
+    setTimeout(() => {
+      if (document.body.contains(errorDiv)) {
+        document.body.removeChild(errorDiv)
+      }
+    }, 5000)
   }
 
   const getTabClass = (tabName) => {
@@ -311,6 +242,23 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
     const inactiveClass = "text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300"
     
     return `${baseClass} ${activeTab === tabName ? activeClass : inactiveClass}`
+  }
+
+  const canGenerateDocuments = () => {
+    if (!taskDetail) return false
+    return ['in_progress', 'awaiting'].includes(taskDetail.status)
+  }
+
+  const hasGeneratedDocuments = () => {
+    return taskDetail?.generated_documents && taskDetail.generated_documents.length > 0
+  }
+
+  const hasSuccessfulDocuments = () => {
+    return taskDetail?.generated_documents?.some(doc => doc.status === 'generated') || false
+  }
+
+  const hasFailedDocuments = () => {
+    return taskDetail?.generated_documents?.some(doc => doc.status === 'failed') || false
   }
 
   if (!isOpen || !task) return null
@@ -331,7 +279,7 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
           </div>
           <button
             onClick={onClose}
-            disabled={loading}
+            disabled={loading || regenerating}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -485,64 +433,149 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-gray-900">Documents</h3>
                     <div className="flex space-x-2">
-                      {taskDetail.status === 'in_progress' && (
+                      {/* Generate/Regenerate Button */}
+                      {canGenerateDocuments() && (
                         <button
-                          onClick={handleGenerateDocuments}
-                          disabled={loading}
-                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                          onClick={hasGeneratedDocuments() ? handleRetryGeneration : handleGenerateDocuments}
+                          disabled={regenerating}
+                          className={`inline-flex items-center px-4 py-2 rounded-md text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                            hasGeneratedDocuments() 
+                              ? 'bg-orange-600 hover:bg-orange-700' 
+                              : 'bg-blue-600 hover:bg-blue-700'
+                          }`}
                         >
-                          {loading ? (
+                          {regenerating ? (
                             <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                           ) : (
                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={
+                                hasGeneratedDocuments() 
+                                  ? "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                  : "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              } />
                             </svg>
                           )}
-                          {loading ? 'Generating...' : 'Generate Documents'}
+                          {regenerating ? 'Generating...' : hasGeneratedDocuments() ? 'Regenerate Documents' : 'Generate Documents'}
                         </button>
                       )}
                       
-                      {(taskDetail.generated_documents?.length > 0) && (
+                      {hasSuccessfulDocuments() && (
                         <button
                           onClick={handleDownloadAll}
                           className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
-                          Download All
+                          Preview All
                         </button>
                       )}
                     </div>
                   </div>
 
+                  {/* Document Generation Status */}
+                  {taskDetail.status === 'awaiting' && taskDetail.generation_completed_at && !taskDetail.generation_error && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-green-800">
+                          <p className="font-medium">Documents Generated Successfully</p>
+                          <p className="text-sm">Generated on {formatDate(taskDetail.generation_completed_at)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Generation Error */}
+                  {taskDetail.generation_error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex">
+                        <svg className="w-5 h-5 text-red-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-red-800 flex-1">
+                          <p className="font-medium">Generation Error</p>
+                          <p className="text-sm">{taskDetail.generation_error}</p>
+                          <p className="text-sm mt-2 text-red-700">
+                            Click "Regenerate Documents" above to try again.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Partial Generation Warning */}
+                  {hasFailedDocuments() && hasSuccessfulDocuments() && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="flex">
+                        <svg className="w-5 h-5 text-yellow-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-yellow-800">
+                          <p className="font-medium">Partial Generation</p>
+                          <p className="text-sm">Some documents generated successfully, but others failed. Consider regenerating all documents.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Generated Documents List */}
                   <div className="space-y-4">
-                    {taskDetail.generated_documents && taskDetail.generated_documents.length > 0 ? (
+                    {hasGeneratedDocuments() ? (
                       taskDetail.generated_documents.map((doc, index) => (
-                        <div key={index} className="border rounded-lg p-4">
+                        <div key={index} className={`border rounded-lg p-4 ${
+                          doc.status === 'failed' ? 'border-red-200 bg-red-50' : 
+                          doc.status === 'generated' ? 'border-green-200 bg-green-50' : 
+                          'border-gray-200'
+                        }`}>
                           <div className="flex items-center justify-between">
                             <div>
                               <h4 className="text-sm font-medium text-gray-900">{doc.templateName}</h4>
                               <p className="text-xs text-gray-600">{doc.fileName}</p>
-                              <p className="text-xs text-gray-500">
-                                Status: <span className="capitalize">{doc.status}</span>
-                                {doc.generatedAt && ` • Generated: ${formatDate(doc.generatedAt)}`}
-                              </p>
+                              <div className="flex items-center mt-1">
+                                <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full capitalize ${
+                                  doc.status === 'generated' ? 'bg-green-100 text-green-800' :
+                                  doc.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                  doc.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {doc.status}
+                                </span>
+                                {doc.generatedAt && (
+                                  <span className="ml-2 text-xs text-gray-500">
+                                    • Generated: {formatDate(doc.generatedAt)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             {doc.status === 'generated' && (
-                              <button
-                                onClick={() => handleDownloadDocument(doc.templateId)}
-                                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                              >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3" />
-                                </svg>
-                                Download
-                              </button>
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleDownloadDocument(doc.templateId, 'preview')}
+                                  className="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm text-blue-700 bg-blue-50 hover:bg-blue-100"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  Preview
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadDocument(doc.templateId, 'download')}
+                                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                                  </svg>
+                                  Download
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -554,8 +587,8 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
                         </svg>
                         <h3 className="mt-2 text-sm font-medium text-gray-900">No Documents Generated</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                          {taskDetail.status === 'in_progress' 
-                            ? 'Click "Generate Documents" to create documents from templates.'
+                          {canGenerateDocuments() 
+                            ? 'Click "Generate Documents" above to create documents from templates.'
                             : 'Documents will appear here once generated.'
                           }
                         </p>

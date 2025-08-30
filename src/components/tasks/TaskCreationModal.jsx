@@ -216,6 +216,17 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated }) {
     }
   }
 
+  // Get step label for progress steps
+  const getStepLabel = (step) => {
+    switch (step) {
+      case 1: return 'Service'
+      case 2: return 'Requirements'
+      case 3: return 'Client'
+      case 4: return 'Review'
+      default: return ''
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -245,18 +256,25 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated }) {
           <div className="flex items-center justify-between">
             {[1, 2, 3, 4].map((step) => (
               <div key={step} className="flex items-center">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
-                  currentStep >= step 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {currentStep > step ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    step
-                  )}
+                <div className="flex flex-col items-center">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                    currentStep >= step 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {currentStep > step ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      step
+                    )}
+                  </div>
+                  <span className={`mt-1 text-xs font-medium ${
+                    currentStep >= step ? 'text-blue-600' : 'text-gray-500'
+                  }`}>
+                    {getStepLabel(step)}
+                  </span>
                 </div>
                 {step < 4 && (
                   <div className={`w-16 h-0.5 mx-2 transition-colors ${
