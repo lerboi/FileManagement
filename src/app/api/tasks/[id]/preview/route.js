@@ -156,14 +156,6 @@ export async function GET(request, { params }) {
                 padding: 0.5in;
             }
         }
-        
-        /* Style any field placeholders that might remain */
-        .field-placeholder {
-            background-color: #fff2cc;
-            border: 1px dashed #d6b656;
-            padding: 2px 4px;
-            font-style: italic;
-        }
     </style>
 </head>
 <body>

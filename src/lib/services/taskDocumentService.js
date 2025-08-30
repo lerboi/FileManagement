@@ -306,27 +306,34 @@ export class TaskDocumentService {
       const replacementLog = []
 
       Object.entries(allFieldMappings).forEach(([fieldName, fieldValue]) => {
-        // Handle different placeholder formats
-        const placeholderPatterns = [
-          // Standard {{field_name}} with optional whitespace
-          new RegExp(`\\{\\{\\s*${this.escapeRegExp(fieldName)}\\s*\\}\\}`, 'gi'),
-          
-          // Span-wrapped placeholders from rich text editors
-          new RegExp(`<span[^>]*class=["]field-placeholder["][^>]*>\\{\\{\\s*${this.escapeRegExp(fieldName)}\\s*\\}\\}</span>`, 'gi'),
-          
-          // Any HTML element wrapping placeholders
-          new RegExp(`<([^>]*)>\\{\\{\\s*${this.escapeRegExp(fieldName)}\\s*\\}\\}</\\1>`, 'gi')
-        ]
-
         let fieldReplacements = 0
-        placeholderPatterns.forEach((regex, patternIndex) => {
-          const matches = populatedContent.match(regex) || []
-          if (matches.length > 0) {
-            populatedContent = populatedContent.replace(regex, fieldValue)
-            fieldReplacements += matches.length
-            console.log(`✓ Pattern ${patternIndex + 1}: Replaced ${matches.length} instances of {{${fieldName}}} with "${fieldValue}"`)
-          }
-        })
+        
+        // Handle standard placeholders first
+        const standardRegex = new RegExp(`\\{\\{\\s*${this.escapeRegExp(fieldName)}\\s*\\}\\}`, 'gi')
+        const standardMatches = populatedContent.match(standardRegex) || []
+        if (standardMatches.length > 0) {
+          populatedContent = populatedContent.replace(standardRegex, fieldValue)
+          fieldReplacements += standardMatches.length
+          console.log(`✓ Standard: Replaced ${standardMatches.length} instances of {{${fieldName}}} with "${fieldValue}"`)
+        }
+
+        // Handle span-wrapped placeholders - FIXED: Replace entire span with just the value
+        const spanRegex = new RegExp(`<span[^>]*class=["]field-placeholder["][^>]*>\\{\\{\\s*${this.escapeRegExp(fieldName)}\\s*\\}\\}</span>`, 'gi')
+        const spanMatches = populatedContent.match(spanRegex) || []
+        if (spanMatches.length > 0) {
+          populatedContent = populatedContent.replace(spanRegex, fieldValue)
+          fieldReplacements += spanMatches.length
+          console.log(`✓ Span-wrapped: Replaced ${spanMatches.length} instances of span-wrapped {{${fieldName}}} with "${fieldValue}"`)
+        }
+
+        // Handle any other HTML-wrapped placeholders - FIXED: Replace entire wrapper with just the value
+        const htmlRegex = new RegExp(`<([^>]+)>\\{\\{\\s*${this.escapeRegExp(fieldName)}\\s*\\}\\}</\\1>`, 'gi')
+        const htmlMatches = populatedContent.match(htmlRegex) || []
+        if (htmlMatches.length > 0) {
+          populatedContent = populatedContent.replace(htmlRegex, fieldValue)
+          fieldReplacements += htmlMatches.length
+          console.log(`✓ HTML-wrapped: Replaced ${htmlMatches.length} instances of HTML-wrapped {{${fieldName}}} with "${fieldValue}"`)
+        }
 
         if (fieldReplacements > 0) {
           replacementCount += fieldReplacements
@@ -337,6 +344,10 @@ export class TaskDocumentService {
           })
         }
       })
+
+      // Clean up any remaining field-placeholder spans that might have been missed
+      populatedContent = populatedContent.replace(/<span[^>]*class=["]field-placeholder["][^>]*>([^<]*)<\/span>/gi, '$1')
+      console.log('Cleaned up any remaining field-placeholder spans')
 
       // 6. Handle remaining unmapped placeholders
       const remainingPlaceholders = populatedContent.match(/\{\{([^}]+)\}\}/g) || []
