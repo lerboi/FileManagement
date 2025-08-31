@@ -248,54 +248,6 @@ export default function TaskPreviewStep({
           </div>
         </div>
 
-        {/* What Happens Next */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h4 className="text-md font-medium text-blue-900 mb-3">What happens next?</h4>
-          <div className="space-y-3 text-sm text-blue-800">
-            <div className="flex items-start">
-              <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                <span className="text-xs font-bold text-blue-900">1</span>
-              </div>
-              <div>
-                <p className="font-medium">Task Created</p>
-                <p className="text-blue-700">The task will be created with "In Progress" status</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start">
-              <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                <span className="text-xs font-bold text-blue-900">2</span>
-              </div>
-              <div>
-                <p className="font-medium">Generate Documents</p>
-                <p className="text-blue-700">
-                  You can then generate {selectedService?.template_count} document{selectedService?.template_count !== 1 ? 's' : ''} using the provided information
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-start">
-              <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                <span className="text-xs font-bold text-blue-900">3</span>
-              </div>
-              <div>
-                <p className="font-medium">Download & Sign</p>
-                <p className="text-blue-700">Download the generated documents, get them signed, and upload them back</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start">
-              <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                <span className="text-xs font-bold text-blue-900">4</span>
-              </div>
-              <div>
-                <p className="font-medium">Complete Task</p>
-                <p className="text-blue-700">Mark the task as completed and update client records</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Validation Summary */}
         {allRequiredFields.length > 0 && (
           <div className={`border rounded-lg p-4 ${

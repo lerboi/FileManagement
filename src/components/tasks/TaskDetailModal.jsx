@@ -1,6 +1,8 @@
 // src/components/tasks/TaskDetailModal.jsx
 'use client'
-
+import OverviewTab from './tabs/OverviewTab'
+import DocumentsTab from './tabs/DocumentsTab'
+import UploadTab from './tabs/UploadTab'
 import { useState, useEffect } from 'react'
 import TaskStatusBadge from './TaskStatusBadge'
 
@@ -14,7 +16,6 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
   useEffect(() => {
     if (isOpen && task) {
       fetchTaskDetail()
-      setActiveTab('documents') // Default to documents tab since they should be ready
       setError('')
     }
   }, [isOpen, task])
@@ -163,11 +164,6 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
     }
   }
 
-  const handleUploadSigned = () => {
-    // This would open a file upload modal
-    setActiveTab('upload')
-  }
-
   const handleCompleteTask = async () => {
     if (!taskDetail) return
 
@@ -261,10 +257,119 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
     return taskDetail?.generated_documents?.some(doc => doc.status === 'failed') || false
   }
 
+  const handleUploadSignedDocument = async (templateId, templateName) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pdf,.doc,.docx'
+    input.multiple = false
+    
+    input.onchange = async (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('templateId', templateId)
+      formData.append('templateName', templateName)
+      
+      try {
+        setError('')
+        const response = await fetch(`/api/tasks/${taskDetail.id}/upload-signed`, {
+          method: 'POST',
+          body: formData
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          setTaskDetail(data.task)
+          onTaskUpdated(data.task)
+          showSuccessMessage(`Signed version of "${templateName}" uploaded successfully`)
+        } else {
+          throw new Error(data.error)
+        }
+      } catch (error) {
+        setError(error.message)
+        showErrorMessage(`Failed to upload signed document: ${error.message}`)
+      }
+    }
+    
+    input.click()
+  }
+
+  const handleUploadAdditionalDocuments = async () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.multiple = true
+    input.accept = '.pdf,.doc,.docx,.txt,.jpg,.jpeg,.png'
+    
+    input.onchange = async (e) => {
+      const files = Array.from(e.target.files)
+      if (files.length === 0) return
+
+      const description = prompt('Enter a description for these additional documents (optional):') || ''
+      
+      const formData = new FormData()
+      files.forEach(file => formData.append('files', file))
+      formData.append('description', description)
+      
+      try {
+        setError('')
+        const response = await fetch(`/api/tasks/${taskDetail.id}/additional-files`, {
+          method: 'POST',
+          body: formData
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          setTaskDetail(data.task)
+          onTaskUpdated(data.task)
+          showSuccessMessage(`${data.uploadedFiles} additional file${data.uploadedFiles !== 1 ? 's' : ''} uploaded successfully`)
+        } else {
+          throw new Error(data.error)
+        }
+      } catch (error) {
+        setError(error.message)
+        showErrorMessage(`Failed to upload additional files: ${error.message}`)
+      }
+    }
+    
+    input.click()
+  }
+
+  const handleDeleteAdditionalFile = async (filePath) => {
+    const confirmed = window.confirm('Are you sure you want to delete this file?')
+    if (!confirmed) return
+
+    try {
+      const response = await fetch(`/api/tasks/${taskDetail.id}/additional-files`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ filePath })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setTaskDetail(data.task)
+        onTaskUpdated(data.task)
+        showSuccessMessage('File deleted successfully')
+      } else {
+        throw new Error(data.error)
+      }
+    } catch (error) {
+      setError(error.message)
+      showErrorMessage(`Failed to delete file: ${error.message}`)
+    }
+  }
+
   if (!isOpen || !task) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -336,327 +441,42 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
             {/* Tab Content */}
             <div className="flex-1 overflow-y-auto p-6">
               {activeTab === 'overview' && (
-                <div className="space-y-6">
-                  {/* Task Info Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Task Information</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">Service</label>
-                          <p className="text-sm text-gray-900">{taskDetail.service_name}</p>
-                          {taskDetail.service_description && (
-                            <p className="text-xs text-gray-600">{taskDetail.service_description}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">Priority</label>
-                          <p className="text-sm text-gray-900 capitalize">{taskDetail.priority || 'normal'}</p>
-                        </div>
-                        {taskDetail.assigned_to && (
-                          <div>
-                            <label className="text-sm font-medium text-gray-500">Assigned To</label>
-                            <p className="text-sm text-gray-900">{taskDetail.assigned_to}</p>
-                          </div>
-                        )}
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">Created</label>
-                          <p className="text-sm text-gray-900">{formatDate(taskDetail.created_at)}</p>
-                        </div>
-                        {taskDetail.completed_at && (
-                          <div>
-                            <label className="text-sm font-medium text-gray-500">Completed</label>
-                            <p className="text-sm text-gray-900">{formatDate(taskDetail.completed_at)}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Client Information</h3>
-                      <div className="space-y-3">
-                        {taskDetail.clients && (
-                          <>
-                            <div>
-                              <label className="text-sm font-medium text-gray-500">Name</label>
-                              <p className="text-sm text-gray-900">
-                                {taskDetail.clients.first_name} {taskDetail.clients.last_name}
-                              </p>
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium text-gray-500">Email</label>
-                              <p className="text-sm text-gray-900">{taskDetail.clients.email || 'Not provided'}</p>
-                            </div>
-                            {taskDetail.clients.phone && (
-                              <div>
-                                <label className="text-sm font-medium text-gray-500">Phone</label>
-                                <p className="text-sm text-gray-900">{taskDetail.clients.phone}</p>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Custom Fields */}
-                  {taskDetail.custom_field_values && Object.keys(taskDetail.custom_field_values).length > 0 && (
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Custom Field Values</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {Object.entries(taskDetail.custom_field_values).map(([key, value]) => (
-                          <div key={key}>
-                            <label className="text-sm font-medium text-gray-500 capitalize">
-                              {key.replace(/_/g, ' ')}
-                            </label>
-                            <p className="text-sm text-gray-900">
-                              {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value || 'Not provided'}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Notes */}
-                  {taskDetail.notes && (
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Notes</h3>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{taskDetail.notes}</p>
-                    </div>
-                  )}
-                </div>
+                <OverviewTab
+                  taskDetail={taskDetail}
+                  formatDate={formatDate}
+                />
               )}
 
               {activeTab === 'documents' && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900">Documents</h3>
-                    <div className="flex space-x-2">
-                      {/* Generate/Regenerate Button */}
-                      {canGenerateDocuments() && (
-                        <button
-                          onClick={hasGeneratedDocuments() ? handleRetryGeneration : handleGenerateDocuments}
-                          disabled={regenerating}
-                          className={`inline-flex items-center px-4 py-2 rounded-md text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                            hasGeneratedDocuments() 
-                              ? 'bg-orange-600 hover:bg-orange-700' 
-                              : 'bg-blue-600 hover:bg-blue-700'
-                          }`}
-                        >
-                          {regenerating ? (
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={
-                                hasGeneratedDocuments() 
-                                  ? "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                  : "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              } />
-                            </svg>
-                          )}
-                          {regenerating ? 'Generating...' : hasGeneratedDocuments() ? 'Regenerate Documents' : 'Generate Documents'}
-                        </button>
-                      )}
-                      
-                      {hasSuccessfulDocuments() && (
-                        <button
-                          onClick={handleDownloadAll}
-                          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                        >
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                          Preview All
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Document Generation Status */}
-                  {taskDetail.status === 'awaiting' && taskDetail.generation_completed_at && !taskDetail.generation_error && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <svg className="w-5 h-5 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div className="text-green-800">
-                          <p className="font-medium">Documents Generated Successfully</p>
-                          <p className="text-sm">Generated on {formatDate(taskDetail.generation_completed_at)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Generation Error */}
-                  {taskDetail.generation_error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <div className="flex">
-                        <svg className="w-5 h-5 text-red-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div className="text-red-800 flex-1">
-                          <p className="font-medium">Generation Error</p>
-                          <p className="text-sm">{taskDetail.generation_error}</p>
-                          <p className="text-sm mt-2 text-red-700">
-                            Click "Regenerate Documents" above to try again.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Partial Generation Warning */}
-                  {hasFailedDocuments() && hasSuccessfulDocuments() && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <div className="flex">
-                        <svg className="w-5 h-5 text-yellow-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div className="text-yellow-800">
-                          <p className="font-medium">Partial Generation</p>
-                          <p className="text-sm">Some documents generated successfully, but others failed. Consider regenerating all documents.</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Generated Documents List */}
-                  <div className="space-y-4">
-                    {hasGeneratedDocuments() ? (
-                      taskDetail.generated_documents.map((doc, index) => (
-                        <div key={index} className={`border rounded-lg p-4 ${
-                          doc.status === 'failed' ? 'border-red-200 bg-red-50' : 
-                          doc.status === 'generated' ? 'border-green-200 bg-green-50' : 
-                          'border-gray-200'
-                        }`}>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900">{doc.templateName}</h4>
-                              <p className="text-xs text-gray-600">{doc.fileName}</p>
-                              <div className="flex items-center mt-1">
-                                <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full capitalize ${
-                                  doc.status === 'generated' ? 'bg-green-100 text-green-800' :
-                                  doc.status === 'failed' ? 'bg-red-100 text-red-800' :
-                                  doc.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {doc.status}
-                                </span>
-                                {doc.generatedAt && (
-                                  <span className="ml-2 text-xs text-gray-500">
-                                    • Generated: {formatDate(doc.generatedAt)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            {doc.status === 'generated' && (
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => handleDownloadDocument(doc.templateId, 'preview')}
-                                  className="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm text-blue-700 bg-blue-50 hover:bg-blue-100"
-                                >
-                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                  </svg>
-                                  Preview
-                                </button>
-                                <button
-                                  onClick={() => handleDownloadDocument(doc.templateId, 'download')}
-                                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                                >
-                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3" />
-                                  </svg>
-                                  Download
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">No Documents Generated</h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                          {canGenerateDocuments() 
-                            ? 'Click "Generate Documents" above to create documents from templates.'
-                            : 'Documents will appear here once generated.'
-                          }
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <DocumentsTab
+                  taskDetail={taskDetail}
+                  canGenerateDocuments={canGenerateDocuments}
+                  hasGeneratedDocuments={hasGeneratedDocuments}
+                  hasSuccessfulDocuments={hasSuccessfulDocuments}
+                  hasFailedDocuments={hasFailedDocuments}
+                  regenerating={regenerating}
+                  handleGenerateDocuments={handleGenerateDocuments}
+                  handleRetryGeneration={handleRetryGeneration}
+                  handleDownloadDocument={handleDownloadDocument}
+                  handleDownloadAll={handleDownloadAll}
+                  formatDate={formatDate}
+                />
               )}
 
               {activeTab === 'upload' && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900">Upload Signed Documents</h3>
-                    {taskDetail.status === 'awaiting' && (
-                      <button
-                        onClick={handleUploadSigned}
-                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                      >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        Upload Files
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Signed Documents List */}
-                  <div className="space-y-4">
-                    {taskDetail.signed_documents && taskDetail.signed_documents.length > 0 ? (
-                      taskDetail.signed_documents.map((doc, index) => (
-                        <div key={index} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900">{doc.originalName}</h4>
-                              <p className="text-xs text-gray-600">
-                                Uploaded: {formatDate(doc.uploadedAt)}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Size: {Math.round(doc.fileSize / 1024)} KB
-                              </p>
-                            </div>
-                            <a
-                              href={doc.downloadUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                            >
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                              View
-                            </a>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">No Signed Documents</h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                          Upload signed documents to complete the task.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <UploadTab
+                  taskDetail={taskDetail}
+                  hasGeneratedDocuments={hasGeneratedDocuments}
+                  handleDownloadDocument={handleDownloadDocument}
+                  handleUploadSignedDocument={handleUploadSignedDocument}
+                  handleUploadAdditionalDocuments={handleUploadAdditionalDocuments}
+                  handleDeleteAdditionalFile={handleDeleteAdditionalFile}
+                  formatDate={formatDate}
+                  setError={setError}
+                  showSuccessMessage={showSuccessMessage}
+                  showErrorMessage={showErrorMessage}
+                  onTaskUpdated={onTaskUpdated}
+                />
               )}
             </div>
 

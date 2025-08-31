@@ -20,17 +20,56 @@ export async function POST(request, { params }) {
 
     // Parse form data
     const formData = await request.formData()
-    const files = formData.getAll('files')
+    const file = formData.get('file')
+    const templateId = formData.get('templateId')
+    const templateName = formData.get('templateName')
+    const isReplacement = formData.get('replace') === 'true'
     
-    if (!files || files.length === 0) {
+    console.log('Upload request:', { templateId, templateName, fileName: file?.name, isReplacement })
+
+    if (!file) {
       return NextResponse.json(
-        { error: 'No files uploaded' },
+        { error: 'No file uploaded' },
         { status: 400 }
       )
     }
 
-    // Validate files
-    const validation = TaskDocumentService.validateFiles(files, 'signed')
+    if (!templateId) {
+      return NextResponse.json(
+        { error: 'Template ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Get current task to check existing signed documents
+    const { TaskManagementService } = await import('@/lib/services/taskManagementService')
+    const taskResult = await TaskManagementService.getTaskById(id, false)
+    
+    if (!taskResult.success) {
+      return NextResponse.json(
+        { error: 'Task not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if document already exists and this isn't a replacement
+    if (!isReplacement && taskResult.task.signed_documents) {
+      const existingSignedDoc = taskResult.task.signed_documents.find(doc => 
+        doc.templateId === templateId || 
+        doc.templateName === templateName ||
+        doc.originalName?.includes(templateName)
+      )
+      
+      if (existingSignedDoc) {
+        return NextResponse.json(
+          { error: `A signed document for "${templateName}" already exists. Use replace function to update it.` },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validate file
+    const validation = TaskDocumentService.validateFiles([file], 'signed')
     if (!validation.valid) {
       return NextResponse.json(
         { 
@@ -41,9 +80,21 @@ export async function POST(request, { params }) {
       )
     }
 
-    console.log(`Uploading ${files.length} signed documents for task: ${id}`)
+    console.log(`${isReplacement ? 'Replacing' : 'Uploading'} signed document for template ${templateId} in task: ${id}`)
 
-    const result = await TaskDocumentService.uploadSignedDocuments(id, files)
+    // Create metadata object to associate with the upload
+    const uploadMetadata = {
+      templateId: templateId,
+      templateName: templateName,
+      replace: isReplacement,
+      fileName: file.name,
+      fileSize: file.size
+    }
+
+    // Use the existing uploadSignedDocuments method
+    const result = await TaskDocumentService.uploadSignedDocuments(id, [file], uploadMetadata)
+
+    console.log('Upload result:', result)
 
     if (!result.success) {
       return NextResponse.json(
@@ -52,23 +103,27 @@ export async function POST(request, { params }) {
       )
     }
 
+    // Get the updated task to return fresh data
+    const updatedTaskResult = await TaskManagementService.getTaskById(id, false)
+    
     const response = {
       success: true,
-      task: result.task,
+      task: updatedTaskResult.success ? updatedTaskResult.task : result.task,
       uploadedFiles: result.uploadedFiles,
-      totalSignedDocuments: result.totalSignedDocuments,
-      message: `Successfully uploaded ${result.uploadedFiles} signed document${result.uploadedFiles !== 1 ? 's' : ''}`
+      templateId: templateId,
+      message: `Successfully ${isReplacement ? 'replaced' : 'uploaded'} signed version of "${templateName}"`
     }
 
-    if (result.errors && result.errors.length > 0) {
-      response.warnings = result.errors
+    if (result.warnings && result.warnings.length > 0) {
+      response.warnings = result.warnings
     }
 
+    console.log('Sending response:', response)
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Error uploading signed documents:', error)
+    console.error('Error uploading signed document:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to upload signed documents' },
+      { error: error.message || 'Failed to upload signed document' },
       { status: 500 }
     )
   }
