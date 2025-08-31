@@ -434,7 +434,7 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
                 onClick={() => setActiveTab('upload')}
                 className={getTabClass('upload')}
               >
-                Upload ({taskDetail.signed_documents?.length || 0})
+                Upload
               </button>
             </div>
 

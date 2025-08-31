@@ -1,13 +1,13 @@
 // src/app/api/tasks/[id]/additional-files/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { TaskDocumentService } from '@/lib/services/taskDocumentService'
 
 // POST - Upload additional files
 export async function POST(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
 
@@ -79,7 +79,7 @@ export async function POST(request, { params }) {
 export async function GET(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
 
@@ -129,7 +129,7 @@ export async function GET(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
     const { filePath } = await request.json()

@@ -1,5 +1,5 @@
 // src/app/dashboard/page.js
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import DashboardContent from '@/components/dashboard/DashboardContent'
 
 export const metadata = {
@@ -9,7 +9,7 @@ export const metadata = {
 
 export default async function DashboardPage() {
   // This will redirect to login if not authenticated
-  const session = await requireAuth()
+  const session = await requireSession()
 
   return <DashboardContent user={session.user} />
 }

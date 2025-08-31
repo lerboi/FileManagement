@@ -1,6 +1,5 @@
 // src/app/services/page.js
 'use client'
-
 import { useState, useEffect } from 'react'
 import ServiceCreationModal from '@/components/services/ServiceCreationModal'
 import ServiceEditModal from '@/components/services/ServiceEditModal'

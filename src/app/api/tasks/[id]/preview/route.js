@@ -1,13 +1,13 @@
 // CREATE NEW FILE: src/app/api/tasks/[id]/preview/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { createServerSupabase } from '@/lib/supabase'
 
 // GET - Preview generated document as HTML in browser
 export async function GET(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
     const { searchParams } = new URL(request.url)
@@ -208,7 +208,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
     const { templateId, format = 'html' } = await request.json()

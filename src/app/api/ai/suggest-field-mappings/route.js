@@ -1,6 +1,6 @@
 // src/app/api/ai/suggest-field-mappings/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { AITemplateMappingService } from '@/lib/services/aiTemplateMappingService'
 import { DocumentProcessingService } from '@/lib/services/documentProcessingService'
 
@@ -10,7 +10,7 @@ export async function POST(request) {
   try {
     // Check authentication
     console.log('Checking authentication...')
-    await requireAuth()
+    await requireSession()
     console.log('Authentication successful')
 
     const { htmlContent, templateId } = await request.json()

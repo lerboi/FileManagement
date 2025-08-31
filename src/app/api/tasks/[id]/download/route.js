@@ -1,13 +1,13 @@
 // src/app/api/tasks/[id]/download/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { TaskDocumentService } from '@/lib/services/taskDocumentService'
 
 // GET - Download documents from a task
 export async function GET(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
 
@@ -71,7 +71,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
     const { templateIds, format = 'html', includeMetadata = false } = await request.json()

@@ -1,13 +1,13 @@
 // src/app/api/templates/selection/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { ServiceTemplateService } from '@/lib/services/serviceTemplateService'
 
 // GET - Get active templates available for service selection
 export async function GET(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { searchParams } = new URL(request.url)
     const groupByType = searchParams.get('groupByType') === 'true'
@@ -57,7 +57,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { template_ids, action = 'validate' } = await request.json()
     

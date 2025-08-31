@@ -1,6 +1,6 @@
 // src/app/api/fields/test/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { FieldSchemaService } from '@/lib/services/fieldSchemaService'
 import { createServiceSupabase } from '@/lib/supabase'
 
@@ -8,7 +8,7 @@ import { createServiceSupabase } from '@/lib/supabase'
 export async function GET(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     console.log('=== Schema Discovery Test Started ===')
     
@@ -186,7 +186,7 @@ export async function GET(request) {
 // POST - Force refresh schema cache
 export async function POST(request) {
   try {
-    await requireAuth()
+    await requireSession()
     
     console.log('Force refreshing schema cache...')
     const refreshedSchema = await FieldSchemaService.refreshSchema()

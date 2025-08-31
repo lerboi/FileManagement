@@ -1,6 +1,6 @@
 // src/app/api/fields/schema/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { FieldSchemaService } from '@/lib/services/fieldSchemaService'
 import { createServiceSupabase } from '@/lib/supabase'
 
@@ -8,7 +8,7 @@ import { createServiceSupabase } from '@/lib/supabase'
 export async function GET(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
@@ -67,7 +67,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { fieldMappings, templateId } = await request.json()
     
@@ -197,7 +197,7 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     FieldSchemaService.clearCache()
     

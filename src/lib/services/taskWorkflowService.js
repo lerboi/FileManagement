@@ -8,48 +8,61 @@ export class TaskWorkflowService {
    * Start document generation process (in_progress → awaiting)
    */
   static async startDocumentGeneration(taskId) {
-    try {
-      if (!taskId) {
-        throw new Error('Task ID is required')
-      }
+  try {
+    if (!taskId) {
+      throw new Error('Task ID is required')
+    }
 
-      console.log(`Starting document generation for task: ${taskId}`)
+    console.log(`Starting document generation for task: ${taskId}`)
 
-      // Step 1: Mark documents for generation and update status
-      const markResult = await TaskDocumentService.markDocumentsForGeneration(taskId)
-      
-      if (!markResult.success) {
-        throw new Error(markResult.error)
-      }
+    // Step 1: Mark documents for generation and update status
+    const markResult = await TaskDocumentService.markDocumentsForGeneration(taskId)
+    
+    if (!markResult.success) {
+      throw new Error(markResult.error)
+    }
 
-      // Step 2: Generate actual documents (HTML population)
-      const generateResult = await TaskDocumentService.generateDocuments(taskId)
-      
-      if (!generateResult.success) {
-        // If generation fails, we keep the task in awaiting status with error
-        return {
-          success: false,
-          error: generateResult.error,
-          task: markResult.task,
-          partialGeneration: true
-        }
-      }
-
-      console.log(`Document generation completed for task: ${taskId}`)
-
-      return {
-        success: true,
-        task: generateResult.task,
-        documentsGenerated: generateResult.generatedDocuments,
-        warnings: generateResult.errors
-      }
-    } catch (error) {
-      console.error('Error in document generation workflow:', error)
+    // Step 2: Generate actual documents (HTML population)
+    const generateResult = await TaskDocumentService.generateDocuments(taskId)
+    
+    if (!generateResult.success) {
+      // If generation fails, we keep the task in awaiting status with error
       return {
         success: false,
-        error: error.message
+        error: generateResult.error,
+        task: markResult.task,
+        partialGeneration: true
       }
     }
+
+    // Step 3: Create signed document folders for generated templates
+    try {
+      const { SignedDocumentStorageService } = await import('@/lib/services/signedDocumentStorageService')
+      const templateIds = generateResult.task.template_ids || []
+      
+      console.log(`Creating signed document folders for task: ${taskId}`)
+      await SignedDocumentStorageService.createSignedDocumentFolders(taskId, templateIds)
+    } catch (folderError) {
+      console.error('Error creating signed document folders:', folderError)
+      // Don't fail the entire process if folder creation fails
+      // Just log the error and continue
+    }
+
+    console.log(`Document generation completed for task: ${taskId}`)
+
+    return {
+      success: true,
+      task: generateResult.task,
+      documentsGenerated: generateResult.generatedDocuments,
+      warnings: generateResult.errors
+    }
+  } catch (error) {
+    console.error('Error in document generation workflow:', error)
+    return {
+      success: false,
+      error: error.message
+    }
+  }
   }
 
   /**

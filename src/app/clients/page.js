@@ -1,6 +1,5 @@
 // src/app/clients/page.js
 'use client'
-
 import { useState, useEffect } from 'react'
 import ClientDetailsModal from '@/components/crm/ClientDetailsModal'
 

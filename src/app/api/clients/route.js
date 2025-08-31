@@ -1,13 +1,13 @@
 // src/app/api/clients/route.js
 import { NextResponse } from 'next/server'
 import { ClientService } from '@/lib/services/clientService'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 
 // GET - Fetch all clients with pagination and search
 export async function GET(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page')) || 1
@@ -30,7 +30,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const clientData = await request.json()
     

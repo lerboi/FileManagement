@@ -1,13 +1,13 @@
 // src/app/api/templates/[id]/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { createServerSupabase } from '@/lib/supabase'
 
 // GET - Fetch a single template by ID
 export async function GET(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { id } = await params
     
@@ -50,7 +50,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { id } = await params
     const updateData = await request.json()
@@ -108,7 +108,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { id } = await params
     

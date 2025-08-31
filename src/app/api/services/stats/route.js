@@ -1,13 +1,13 @@
 // src/app/api/services/stats/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { ServiceManagementService } from '@/lib/services/serviceManagementService'
 
 // GET - Get service statistics
 export async function GET(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const stats = await ServiceManagementService.getServiceStatistics()
     

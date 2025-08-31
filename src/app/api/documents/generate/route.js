@@ -1,12 +1,12 @@
 // src/app/api/documents/generate/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { createServerSupabase } from '@/lib/supabase'
 
 export async function POST(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { templateId, clientId, customFieldValues = {} } = await request.json()
 

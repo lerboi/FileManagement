@@ -1,6 +1,6 @@
 // src/app/api/services/test/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { ServiceManagementService } from '@/lib/services/serviceManagementService'
 import { ServiceTemplateService } from '@/lib/services/serviceTemplateService'
 
@@ -8,7 +8,7 @@ import { ServiceTemplateService } from '@/lib/services/serviceTemplateService'
 export async function GET(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     console.log('=== Service System Test Started ===')
     

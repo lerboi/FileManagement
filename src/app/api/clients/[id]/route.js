@@ -1,13 +1,13 @@
 // src/app/api/clients/[id]/route.js
 import { NextResponse } from 'next/server'
 import { ClientService } from '@/lib/services/clientService'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 
 // GET - Fetch a single client by ID
 export async function GET(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { id } = await params
     
@@ -34,7 +34,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { id } = await params
     const clientData = await request.json()
@@ -62,7 +62,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { id } = await params
     

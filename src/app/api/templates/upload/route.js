@@ -1,6 +1,6 @@
 // src/app/api/templates/upload/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { DocumentProcessingService } from '@/lib/services/documentProcessingService'
 import formidable from 'formidable'
 import fs from 'fs'
@@ -8,7 +8,7 @@ import fs from 'fs'
 export async function POST(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     // Parse form data
     const formData = await request.formData()

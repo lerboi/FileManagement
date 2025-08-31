@@ -1,6 +1,6 @@
 // src/app/api/tasks/[id]/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { TaskManagementService } from '@/lib/services/taskManagementService'
 import { TaskWorkflowService } from '@/lib/services/taskWorkflowService'
 
@@ -8,7 +8,7 @@ import { TaskWorkflowService } from '@/lib/services/taskWorkflowService'
 export async function GET(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
 
@@ -60,7 +60,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
     const updates = await request.json()
@@ -104,7 +104,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
 

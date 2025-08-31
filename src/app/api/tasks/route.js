@@ -1,6 +1,6 @@
 // src/app/api/tasks/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { TaskManagementService } from '@/lib/services/taskManagementService'
 import { TaskWorkflowService } from '@/lib/services/taskWorkflowService'
 
@@ -8,7 +8,7 @@ import { TaskWorkflowService } from '@/lib/services/taskWorkflowService'
 export async function GET(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { searchParams } = new URL(request.url)
     
@@ -60,7 +60,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const taskData = await request.json()
 

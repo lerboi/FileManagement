@@ -1,13 +1,13 @@
 // src/app/api/services/preview/custom-fields/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { ServiceTemplateService } from '@/lib/services/serviceTemplateService'
 
 // POST - Get aggregated custom fields preview for template selection
 export async function POST(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { template_ids } = await request.json()
     

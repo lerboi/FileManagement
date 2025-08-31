@@ -1,13 +1,13 @@
 // src/app/api/tasks/[id]/complete/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { TaskWorkflowService } from '@/lib/services/taskWorkflowService'
 
 // POST - Complete a task (awaiting → completed)
 export async function POST(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
 
@@ -67,7 +67,7 @@ export async function POST(request, { params }) {
 export async function GET(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
 
@@ -131,7 +131,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
     const { completionNotes, additionalData } = await request.json()

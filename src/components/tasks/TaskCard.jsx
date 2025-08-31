@@ -60,13 +60,12 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
     }
   }
 
-  // Count generated documents
+  // Count generated documents for status-specific actions
   const generatedDocsCount = task.generated_documents?.filter(doc => doc.status === 'generated').length || 0
-  const totalTemplates = task.template_ids?.length || 0
   const signedDocsCount = task.signed_documents?.length || 0
 
   return (
-    <div className="p-6 hover:bg-gray-50 transition-colors">
+    <div className="p-4 hover:bg-gray-50 transition-colors">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           {/* Task Header */}
@@ -80,17 +79,23 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
                 Client: {task.client_name}
               </p>
             </div>
-            <TaskStatusBadge status={task.status} />
           </div>
           
           {/* Task Details Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
             <div>
               <p className="text-sm font-medium text-gray-500">Service</p>
               <p className="text-sm text-gray-900">{task.service_name}</p>
               {task.service_description && (
                 <p className="text-xs text-gray-600 line-clamp-1">{task.service_description}</p>
               )}
+            </div>
+            
+            <div>
+              <p className="text-sm font-medium text-gray-500">Status</p>
+              <div className="flex items-center mt-1">
+                <TaskStatusBadge status={task.status} />
+              </div>
             </div>
             
             <div>
@@ -108,30 +113,9 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
             </div>
           </div>
 
-          {/* Document Progress */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-              <span>Document Progress</span>
-              <span>{generatedDocsCount} of {totalTemplates} generated</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                style={{ 
-                  width: totalTemplates > 0 ? `${(generatedDocsCount / totalTemplates) * 100}%` : '0%' 
-                }}
-              ></div>
-            </div>
-            {signedDocsCount > 0 && (
-              <p className="text-xs text-green-600 mt-1">
-                {signedDocsCount} signed document{signedDocsCount !== 1 ? 's' : ''} uploaded
-              </p>
-            )}
-          </div>
-
           {/* Completion Time */}
           {task.completed_at && (
-            <div className="mb-4">
+            <div className="mb-3">
               <p className="text-sm font-medium text-gray-500">Completed</p>
               <p className="text-sm text-gray-900">{formatDate(task.completed_at)}</p>
             </div>
@@ -139,15 +123,20 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
 
           {/* Generation Info */}
           {task.status === 'awaiting' && task.generation_completed_at && (
-            <div className="mb-4">
+            <div className="mb-3">
               <p className="text-sm font-medium text-gray-500">Documents Generated</p>
               <p className="text-sm text-gray-900">{formatDate(task.generation_completed_at)}</p>
+              {signedDocsCount > 0 && (
+                <p className="text-xs text-green-600 mt-1">
+                  {signedDocsCount} signed document{signedDocsCount !== 1 ? 's' : ''} uploaded
+                </p>
+              )}
             </div>
           )}
 
           {/* Error Message */}
           {task.generation_error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
               <div className="flex">
                 <svg className="w-5 h-5 text-red-400 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -161,7 +150,7 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
           )}
 
           {/* Assignment and Notes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-3">
             {task.assigned_to && (
               <div>
                 <p className="font-medium text-gray-500">Assigned To</p>
@@ -178,19 +167,8 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
           </div>
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex items-center space-x-2 ml-6">
-          <button
-            onClick={() => onView(task)}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            View
-          </button>
-
+        {/* Delete Button - Top Right */}
+        <div className="ml-4">
           <button
             onClick={() => onDelete?.(task)}
             className="inline-flex items-center p-2 text-red-600 hover:bg-red-50 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -200,41 +178,22 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </button>
-          
+        </div>
+      </div>
+      
+      {/* Bottom Action Buttons - All Bottom Right */}
+      <div className="flex justify-end">
+        <div className="flex space-x-2">
           {/* Status-specific actions */}
           {task.status === 'in_progress' && (
             <button
-              onClick={() => onView(task)} // This should open task detail to generate documents
+              onClick={() => onView(task)}
               className="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Generate Docs
-            </button>
-          )}
-          
-          {task.status === 'awaiting' && generatedDocsCount > 0 && (
-            <button
-              onClick={() => onDownload(task)}
-              className="inline-flex items-center px-3 py-2 border border-green-300 rounded-md text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Download
-            </button>
-          )}
-          
-          {task.status === 'completed' && (
-            <button
-              onClick={() => onDownload(task)}
-              className="inline-flex items-center px-3 py-2 border border-green-300 rounded-md text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Download All
             </button>
           )}
           
@@ -249,6 +208,18 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
               Retry
             </button>
           )}
+
+          {/* View Button - Always show, bottom right */}
+          <button
+            onClick={() => onView(task)}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 616 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            View
+          </button>
         </div>
       </div>
     </div>

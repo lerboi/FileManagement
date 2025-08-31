@@ -1,6 +1,6 @@
 // src/app/api/templates/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { DocumentProcessingService } from '@/lib/services/documentProcessingService'
 import { createServerSupabase } from '@/lib/supabase'
 
@@ -8,7 +8,7 @@ import { createServerSupabase } from '@/lib/supabase'
 export async function GET(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const result = await DocumentProcessingService.getTemplates()
 
@@ -37,7 +37,7 @@ export async function GET(request) {
 export async function PUT(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id, name, description, html_content, field_mappings, status } = await request.json()
 

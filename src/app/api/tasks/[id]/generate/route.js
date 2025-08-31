@@ -1,6 +1,6 @@
 // src/app/api/tasks/[id]/generate/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { TaskWorkflowService } from '@/lib/services/taskWorkflowService'
 
 // POST - Generate documents for a task (in_progress → awaiting)

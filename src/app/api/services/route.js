@@ -1,13 +1,13 @@
 // src/app/api/services/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { ServiceManagementService } from '@/lib/services/serviceManagementService'
 
 // GET - Fetch all services
 export async function GET(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { searchParams } = new URL(request.url)
     const includeInactive = searchParams.get('includeInactive') === 'true'
@@ -38,7 +38,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const serviceData = await request.json()
     

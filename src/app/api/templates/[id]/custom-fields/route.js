@@ -1,13 +1,13 @@
 // src/app/api/templates/[id]/custom-fields/route.js
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireSession } from '@/lib/session'
 import { createServerSupabase } from '@/lib/supabase'
 
 // PUT - Update custom fields for a template
 export async function PUT(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { id } = await params
     const { customFields } = await request.json()
@@ -70,7 +70,7 @@ export async function PUT(request, { params }) {
 export async function GET(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
     
     const { id } = await params
     
