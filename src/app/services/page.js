@@ -368,7 +368,7 @@ export default function ServicesPage() {
                           </svg>
                           <div className="text-sm text-yellow-800">
                             <p className="font-medium">Service contains inactive templates</p>
-                            <p>Some templates in this service are not active and won't be available for task creation.</p>
+                            <p>Some templates in this service are not active and wont be available for task creation.</p>
                           </div>
                         </div>
                       </div>
