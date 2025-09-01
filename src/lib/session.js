@@ -1,36 +1,45 @@
-// src/lib/session.js
+// src/lib/session.js - Fixed version
 import { cookies } from 'next/headers'
-import { createServerSupabase } from './supabase'
+import { createClient } from '@supabase/supabase-js'
 
-// Session cache to avoid repeated database calls
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Session cache
 const sessionCache = new Map()
 const CACHE_DURATION = 10 * 60 * 1000 // 10 minutes
 
 export async function getSession() {
   try {
-    const cookieStore = await cookies() // Await the cookies function
-    
-    // Get session cookies
+    const cookieStore = await cookies()
+
     const accessToken = cookieStore.get('sb-access-token')?.value
     const refreshToken = cookieStore.get('sb-refresh-token')?.value
-    
+
     if (!accessToken) {
       return null
     }
 
     // Check cache first
-    const cacheKey = accessToken.substring(0, 20) // Use part of token as cache key
+    const cacheKey = accessToken.substring(0, 20)
     const cached = sessionCache.get(cacheKey)
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       return cached.session
     }
 
-    // Verify token with Supabase (only when cache misses)
-    const supabase = await createServerSupabase()
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken)
-    
+    // Create Supabase client with the user's tokens
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    })
+
+    // Verify the token is valid
+    const { data: { user }, error } = await supabase.auth.getUser()
+
     if (error || !user) {
-      // Clear invalid session from cache
       sessionCache.delete(cacheKey)
       return null
     }
@@ -42,7 +51,6 @@ export async function getSession() {
       authenticated: true
     }
 
-    // Cache the session
     sessionCache.set(cacheKey, {
       session,
       timestamp: Date.now()
@@ -57,49 +65,32 @@ export async function getSession() {
 
 export async function requireSession() {
   const session = await getSession()
-  
+
   if (!session?.authenticated) {
     throw new Error('Authentication required')
   }
-  
+
   return session
 }
 
-// Handle session refresh
-export async function refreshSession() {
-  try {
-    const cookieStore = await cookies() // Await the cookies function
-    const refreshToken = cookieStore.get('sb-refresh-token')?.value
-    
-    if (!refreshToken) {
-      return null
-    }
+// Create authenticated Supabase client from session
+export async function createAuthenticatedSupabase() {
+  const session = await getSession()
 
-    const supabase = await createServerSupabase()
-    const { data, error } = await supabase.auth.refreshSession({
-      refresh_token: refreshToken
-    })
-
-    if (error || !data.session) {
-      return null
-    }
-
-    // Clear old cache entries
-    clearSessionCache()
-
-    return {
-      user: data.user,
-      accessToken: data.session.access_token,
-      refreshToken: data.session.refresh_token,
-      authenticated: true
-    }
-  } catch (error) {
-    console.error('Session refresh error:', error)
-    return null
+  if (!session?.authenticated) {
+    throw new Error('Authentication required')
   }
+
+  // Create client with user's access token
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`
+      }
+    }
+  })
 }
 
-// Clear session cache (call when user logs out)
 export function clearSessionCache() {
   sessionCache.clear()
 }

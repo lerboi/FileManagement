@@ -8,14 +8,14 @@ export async function GET(request) {
   try {
     // Check authentication
     await requireSession()
-    
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page')) || 1
     const limit = parseInt(searchParams.get('limit')) || 10
     const search = searchParams.get('search') || ''
-    
+
     const result = await ClientService.getAllClients(page, limit, search)
-    
+
     return NextResponse.json(result, { status: 200 })
   } catch (error) {
     console.error('Error fetching clients:', error)
@@ -31,9 +31,9 @@ export async function POST(request) {
   try {
     // Check authentication
     await requireSession()
-    
+
     const clientData = await request.json()
-    
+
     // Basic validation
     if (!clientData.first_name || !clientData.last_name) {
       return NextResponse.json(
@@ -41,9 +41,9 @@ export async function POST(request) {
         { status: 400 }
       )
     }
-    
+
     const newClient = await ClientService.createClient(clientData)
-    
+
     return NextResponse.json(newClient, { status: 201 })
   } catch (error) {
     console.error('Error creating client:', error)

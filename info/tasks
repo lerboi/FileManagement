@@ -26,11 +26,4 @@ Save a create client process as draft
 
 
 Overall:
-- Make the popup modal background not opaque.
-
-Task Editor:
-- Remove the Debug boxes, the 'How it works" box, and Schema Information box in the Template Editor.
-
-Task Modal:
-- Fix the wording not being shown in the steps
-- When a task is created, it should automatically open up the Task Details modal and the Documents should already be generated. There shouldnt be a 'Generate Documents' button since the documents should already be generated.
+- Add ability to set status 

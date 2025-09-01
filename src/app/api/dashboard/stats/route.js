@@ -6,9 +6,9 @@ import { createServerSupabase } from '@/lib/supabase'
 export async function GET() {
   try {
     await requireSession()
-    
+
     const supabase = await createServerSupabase()
-    
+
     // Get all stats in parallel
     const [
       clientsResult,
@@ -20,19 +20,19 @@ export async function GET() {
       supabase
         .from('clients')
         .select('*', { count: 'exact', head: true }),
-      
+
       // Active Tasks count (in_progress and awaiting)
       supabase
         .from('tasks')
         .select('*', { count: 'exact', head: true })
         .in('status', ['in_progress', 'awaiting']),
-      
+
       // Templates count
       supabase
         .from('templates')
         .select('*', { count: 'exact', head: true })
         .eq('is_active', true),
-      
+
       // Active Services count
       supabase
         .from('services')

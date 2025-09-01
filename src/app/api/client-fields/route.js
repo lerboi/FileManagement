@@ -19,7 +19,7 @@ export async function GET(request) {
     if (includeColumns && !cacheOnly) {
       const columnsResult = await ClientFieldsService.getClientTableColumns()
       columns = columnsResult.success ? columnsResult.columns : null
-      
+
       // Update cache status after fetch
       cacheStatus = ClientFieldsService.getCacheStatus()
     }
@@ -61,11 +61,11 @@ export async function POST(request) {
       // Clear cache and fetch fresh data
       ClientFieldsService.clearCache()
       const columnsResult = await ClientFieldsService.getClientTableColumns()
-      
+
       return NextResponse.json({
         success: columnsResult.success,
-        message: columnsResult.success 
-          ? `Cache refreshed with ${columnsResult.columns.length} columns` 
+        message: columnsResult.success
+          ? `Cache refreshed with ${columnsResult.columns.length} columns`
           : 'Failed to refresh cache',
         columns: columnsResult.columns,
         cacheStatus: ClientFieldsService.getCacheStatus(),
@@ -93,7 +93,7 @@ export async function DELETE(request) {
     await requireAuth()
 
     ClientFieldsService.clearCache()
-    
+
     return NextResponse.json({
       success: true,
       message: 'Client fields cache cleared successfully'

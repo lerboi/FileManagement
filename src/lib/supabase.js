@@ -1,4 +1,4 @@
-// src/lib/supabase.js - Updated with minor optimizations
+// src/lib/supabase.js - Updated with session-based auth integration
 import { createClient } from '@supabase/supabase-js'
 import { createClientComponentClient, createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
@@ -12,14 +12,36 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // For client components
 export const createClientSupabase = () => createClientComponentClient()
 
-// For server components - properly await cookies with error handling
+// For server components - UPDATED to work with session-based auth
 export const createServerSupabase = async () => {
   try {
     const cookieStore = await cookies()
+
+    // Get session tokens from cookies
+    const accessToken = cookieStore.get('sb-access-token')?.value
+    const refreshToken = cookieStore.get('sb-refresh-token')?.value
+
+    if (accessToken) {
+      // Create authenticated client using the access token
+      return createClient(supabaseUrl, supabaseAnonKey, {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      })
+    }
+
+    // Fallback to the original server component client
     return createServerComponentClient({ cookies: () => cookieStore })
+
   } catch (error) {
     console.error('Error creating server Supabase client:', error)
-    // Fallback to basic client if cookies fail
+    // Final fallback to basic client
     return createClient(supabaseUrl, supabaseAnonKey)
   }
 }
@@ -38,12 +60,12 @@ export const createServiceSupabase = () => {
   if (typeof window !== 'undefined') {
     throw new Error('Service role client should only be used server-side')
   }
-  
+
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.warn('SUPABASE_SERVICE_ROLE_KEY not found, using anon key')
     return createClient(supabaseUrl, supabaseAnonKey)
   }
-  
+
   return createClient(
     supabaseUrl,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -59,7 +81,7 @@ export const createServiceSupabase = () => {
 // Utility function to handle Supabase errors gracefully
 export const handleSupabaseError = (error, context = '') => {
   console.error(`Supabase error ${context}:`, error)
-  
+
   if (error.status === 429 || error.code === 'over_request_rate_limit') {
     return {
       success: false,
@@ -67,7 +89,7 @@ export const handleSupabaseError = (error, context = '') => {
       retryable: true
     }
   }
-  
+
   if (error.code === 'PGRST116') {
     return {
       success: false,
@@ -75,7 +97,7 @@ export const handleSupabaseError = (error, context = '') => {
       retryable: false
     }
   }
-  
+
   return {
     success: false,
     error: error.message || 'Database operation failed',
