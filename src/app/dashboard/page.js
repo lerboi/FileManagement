@@ -7,6 +7,9 @@ export const metadata = {
   description: 'Admin dashboard for managing trust distributions',
 }
 
+// In your page component (e.g., app/page.js or app/dashboard/page.js)
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
   // This will redirect to login if not authenticated
   const session = await requireSession()
