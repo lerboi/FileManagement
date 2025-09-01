@@ -2,9 +2,7 @@
 import { createServerSupabase } from '@/lib/supabase'
 
 export class TaskManagementService {
-  /**
-   * Get all tasks with filtering and pagination
-   */
+  // Get all tasks with filtering and pagination
   static async getAllTasks(options = {}) {
     try {
       const {
@@ -30,7 +28,15 @@ export class TaskManagementService {
 
       // Apply filters
       if (status !== 'all') {
-        query = query.eq('status', status)
+        // Handle comma-separated status values
+        if (status.includes(',')) {
+          const statusArray = status.split(',').map(s => s.trim()).filter(s => s.length > 0)
+          if (statusArray.length > 0) {
+            query = query.in('status', statusArray)
+          }
+        } else {
+          query = query.eq('status', status)
+        }
       }
 
       if (clientId) {
@@ -81,9 +87,7 @@ export class TaskManagementService {
     }
   }
 
-  /**
-   * Get task by ID
-   */
+  // Get task by ID
   static async getTaskById(taskId, includeDocuments = true) {
     try {
       if (!taskId) {
@@ -125,9 +129,7 @@ export class TaskManagementService {
     }
   }
 
-  /**
-   * Create new task
-   */
+  // Create new task
   static async createTask(taskData) {
     try {
       const supabase = await createServerSupabase()
@@ -197,9 +199,7 @@ export class TaskManagementService {
     }
   }
 
-  /**
-   * Update task
-   */
+  // Update task
   static async updateTask(taskId, updates) {
     try {
       if (!taskId) {
@@ -241,9 +241,7 @@ export class TaskManagementService {
     }
   }
 
-  /**
-   * Delete task and all related data
-   */
+  // Delete task and all related data
   static async deleteTask(taskId) {
     try {
       if (!taskId) {
@@ -316,9 +314,7 @@ export class TaskManagementService {
     }
   }
 
-  /**
-   * Delete all files associated with a task from storage
-   */
+  // Delete all files associated with a task from storage
   static async deleteTaskFiles(clientId, taskId, task) {
     const supabase = await createServerSupabase()
     const results = {
@@ -396,9 +392,7 @@ export class TaskManagementService {
     return results
   }
 
-  /**
-   * Get task statistics
-   */
+  // Get task statistics
   static async getTaskStatistics() {
     try {
       const supabase = await createServerSupabase()
@@ -430,13 +424,234 @@ export class TaskManagementService {
       throw error
     }
   }
+
+  // Create draft task
+  static async createDraftTask(taskData) {
+    try {
+      const supabase = await createServerSupabase()
+
+      // Fetch client and service data for validation and snapshot
+      const [clientResult, serviceResult] = await Promise.all([
+        supabase.from('clients').select('*').eq('id', taskData.client_id).single(),
+        supabase.from('services').select('*').eq('id', taskData.service_id).single()
+      ])
+
+      if (clientResult.error) {
+        throw new Error(`Failed to fetch client: ${clientResult.error.message}`)
+      }
+
+      if (serviceResult.error) {
+        throw new Error(`Failed to fetch service: ${serviceResult.error.message}`)
+      }
+
+      const client = clientResult.data
+      const service = serviceResult.data
+
+      // Prepare draft task data
+      const newTaskData = {
+        client_id: taskData.client_id,
+        service_id: taskData.service_id,
+        status: 'in_progress',
+        is_draft: true,
+        service_name: service.name,
+        service_description: service.description,
+        template_ids: service.template_ids,
+        template_names: [],
+        custom_field_values: taskData.custom_field_values || {},
+        generated_documents: [],
+        signed_documents: [],
+        additional_files: [],
+        client_data_snapshot: client,
+        client_name: `${client.first_name} ${client.last_name}`,
+        notes: taskData.notes || null,
+        priority: taskData.priority || 'normal',
+        assigned_to: taskData.assigned_to || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      // Create draft task
+      const { data: createdTask, error: createError } = await supabase
+        .from('tasks')
+        .insert([newTaskData])
+        .select()
+        .single()
+
+      if (createError) {
+        throw new Error(`Failed to create draft task: ${createError.message}`)
+      }
+
+      console.log(`Draft task created successfully: ${createdTask.id}`)
+
+      return {
+        success: true,
+        task: createdTask
+      }
+    } catch (error) {
+      console.error('Error creating draft task:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
+
+  // Update draft task
+  static async updateDraftTask(taskId, updates) {
+    try {
+      if (!taskId) {
+        throw new Error('Task ID is required')
+      }
+
+      const supabase = await createServerSupabase()
+
+      // First verify it's a draft task
+      const { data: existingTask, error: fetchError } = await supabase
+        .from('tasks')
+        .select('is_draft, status')
+        .eq('id', taskId)
+        .single()
+
+      if (fetchError) {
+        throw new Error('Draft task not found')
+      }
+
+      if (!existingTask.is_draft) {
+        throw new Error('Task is not a draft and cannot be updated')
+      }
+
+      // Add updated timestamp
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data: updatedTask, error } = await supabase
+        .from('tasks')
+        .update(updateData)
+        .eq('id', taskId)
+        .select()
+        .single()
+
+      if (error) {
+        throw new Error(`Failed to update draft task: ${error.message}`)
+      }
+
+      return {
+        success: true,
+        task: updatedTask
+      }
+    } catch (error) {
+      console.error('Error updating draft task:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
+
+  // Get all draft tasks
+  static async getDraftTasks() {
+    try {
+      const supabase = await createServerSupabase()
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select(`
+          *,
+          clients!inner(first_name, last_name, email, phone),
+          services!inner(name, description)
+        `)
+        .eq('is_draft', true)
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        throw new Error(`Failed to fetch draft tasks: ${error.message}`)
+      }
+
+      return {
+        success: true,
+        drafts: data || []
+      }
+    } catch (error) {
+      console.error('Error fetching draft tasks:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
+
+  // Finalize draft task and start document generation
+  static async finalizeDraftTask(taskId) {
+    try {
+      if (!taskId) {
+        throw new Error('Task ID is required')
+      }
+
+      const supabase = await createServerSupabase()
+
+      // First verify it's a draft task
+      const { data: existingTask, error: fetchError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single()
+
+      if (fetchError) {
+        throw new Error('Draft task not found')
+      }
+
+      if (!existingTask.is_draft) {
+        throw new Error('Task is not a draft')
+      }
+
+      // Mark as non-draft
+      const { data: finalizedTask, error: updateError } = await supabase
+        .from('tasks')
+        .update({ 
+          is_draft: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', taskId)
+        .select()
+        .single()
+
+      if (updateError) {
+        throw new Error(`Failed to finalize draft task: ${updateError.message}`)
+      }
+
+      // Start document generation
+      const { TaskWorkflowService } = await import('./taskWorkflowService')
+      const generateResult = await TaskWorkflowService.startDocumentGeneration(taskId)
+
+      if (generateResult.success) {
+        return {
+          success: true,
+          task: generateResult.task,
+          documentsGenerated: generateResult.documentsGenerated
+        }
+      } else {
+        // Even if generation fails, the task is now finalized
+        return {
+          success: true,
+          task: finalizedTask,
+          documentsGenerated: 0,
+          error: generateResult.error
+        }
+      }
+    } catch (error) {
+      console.error('Error finalizing draft task:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
 }
 
-// Fixed TaskDocumentService download methods
 export class TaskDocumentServiceFixed {
-  /**
-   * Download generated document - FIXED VERSION
-   */
+  // Download generated document - FIXED VERSION
   static async downloadDocument(taskId, templateId) {
     try {
       if (!taskId || !templateId) {
@@ -509,9 +724,7 @@ export class TaskDocumentServiceFixed {
     }
   }
 
-  /**
-   * Download all generated documents - FIXED VERSION
-   */
+  // Download all generated documents - FIXED VERSION
   static async downloadAllDocuments(taskId) {
     try {
       if (!taskId) {

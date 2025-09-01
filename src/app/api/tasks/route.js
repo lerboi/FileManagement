@@ -15,7 +15,7 @@ export async function GET(request) {
     const options = {
       page: parseInt(searchParams.get('page') || '1'),
       limit: parseInt(searchParams.get('limit') || '10'),
-      status: searchParams.get('status') || 'all',
+      status: searchParams.get('status') || 'in_progress,awaiting', // Default to both active statuses
       clientId: searchParams.get('clientId') || null,
       serviceId: searchParams.get('serviceId') || null,
       search: searchParams.get('search') || null,

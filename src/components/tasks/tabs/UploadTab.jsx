@@ -191,15 +191,17 @@ export default function UploadTab({
                                 </svg>
                                 View Signed
                               </a>
-                              <button
-                                onClick={() => handleUploadSignedDocument(doc.templateId, doc.templateName)}
-                                className="inline-flex items-center px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
-                              >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                Replace
-                              </button>
+                              {taskDetail.status !== 'completed' && (
+                                <button
+                                  onClick={() => handleUploadSignedDocument(doc.templateId, doc.templateName)}
+                                  className="inline-flex items-center px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                  Replace
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <div className="flex space-x-2">
@@ -213,15 +215,17 @@ export default function UploadTab({
                                 </svg>
                                 Preview
                               </button>
-                              <button
-                                onClick={() => handleUploadSignedDocument(doc.templateId, doc.templateName)}
-                                className="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                              >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                </svg>
-                                Upload Signed
-                              </button>
+                              {taskDetail.status !== 'completed' && (
+                                <button
+                                  onClick={() => handleUploadSignedDocument(doc.templateId, doc.templateName)}
+                                  className="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                  </svg>
+                                  Upload Signed
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -247,20 +251,22 @@ export default function UploadTab({
       {/* Additional Documents Section */}
       <div className="border-t border-gray-200 pt-6">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900">Additional Post-incorporation Services</h3>
-            <p className="text-sm text-gray-600 mt-1">Upload any additional documents related to this task</p>
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Additional Post-incorporation Services</h3>
+              <p className="text-sm text-gray-600 mt-1">Upload any additional documents related to this task</p>
+            </div>
+            {taskDetail.status !== 'completed' && (
+              <button
+                onClick={handleUploadAdditionalDocumentsWrapper}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Upload Additional Files
+              </button>
+            )}
           </div>
-          <button
-            onClick={handleUploadAdditionalDocumentsWrapper}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            Upload Additional Files
-          </button>
-        </div>
 
         {/* Additional Documents List */}
         <div className="space-y-3">

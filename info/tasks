@@ -27,3 +27,8 @@ Save a create client process as draft
 
 Overall:
 - Add ability to set status 
+
+
+
+
+Creatng task draft, in Requiremetns step, dont need to update field on every key input, only when "Save" is clicked

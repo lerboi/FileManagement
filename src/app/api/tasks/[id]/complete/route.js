@@ -96,16 +96,17 @@ export async function GET(request, { params }) {
     }
 
     const task = taskResult.task
-    const validation = TaskWorkflowService.validateTaskCompletion(task)
+    const validation = await TaskWorkflowService.validateTaskCompletion(task)
     const workflowStatus = TaskWorkflowService.getTaskWorkflowStatus(task)
 
     const completionCheck = {
       canComplete: validation.valid,
       currentStatus: task.status,
       validationError: validation.error || null,
+      missingSignedDocs: validation.missingSignedDocs || [],
       requirements: {
         hasGeneratedDocuments: (task.generated_documents || []).some(doc => doc.status === 'generated'),
-        hasSignedDocuments: (task.signed_documents || []).length > 0,
+        hasSignedDocuments: validation.signedDocumentCount > 0,
         isInAwaitingStatus: task.status === 'awaiting'
       },
       generatedDocuments: task.generated_documents || [],

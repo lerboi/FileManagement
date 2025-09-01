@@ -380,7 +380,13 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
                 {taskDetail?.service_name} for {taskDetail?.client_name}
               </p>
             </div>
-            {taskDetail && <TaskStatusBadge status={taskDetail.status} />}
+            {taskDetail && (
+              <TaskStatusBadge 
+                status={taskDetail.status} 
+                isDraft={taskDetail.is_draft}
+                size="lg" 
+              />
+            )}
           </div>
           <button
             onClick={onClose}
@@ -444,6 +450,20 @@ export default function TaskDetailModal({ isOpen, onClose, task, onTaskUpdated }
                 <OverviewTab
                   taskDetail={taskDetail}
                   formatDate={formatDate}
+                  onTaskUpdated={(updatedTask) => {
+                    setTaskDetail(updatedTask)
+                    onTaskUpdated(updatedTask)
+                    // If task is completed, refresh and close modal
+                    if (updatedTask.status === 'completed') {
+                      showSuccessMessage('Task completed successfully!')
+                      setTimeout(() => {
+                        onClose()
+                      }, 1500)
+                    }
+                  }}
+                  showSuccessMessage={showSuccessMessage}
+                  showErrorMessage={showErrorMessage}
+                  onClose={onClose}
                 />
               )}
 

@@ -85,7 +85,7 @@ export class TaskWorkflowService {
       const task = taskResult.task
 
       // Validate task can be completed
-      const validationResult = this.validateTaskCompletion(task)
+      const validationResult = await this.validateTaskCompletion(task)
       if (!validationResult.valid) {
         throw new Error(validationResult.error)
       }
@@ -159,7 +159,7 @@ export class TaskWorkflowService {
   /**
    * Validate if task can be completed
    */
-  static validateTaskCompletion(task) {
+  static async validateTaskCompletion(task) {
     // Check task status
     if (task.status !== 'awaiting') {
       return {
@@ -179,28 +179,33 @@ export class TaskWorkflowService {
       }
     }
 
-    // Check if signed documents were uploaded
-    const signedDocs = task.signed_documents || []
+    // Check if all generated documents have corresponding signed versions
+    const { SignedDocumentStorageService } = await import('@/lib/services/signedDocumentStorageService')
+    const missingSignedDocs = []
     
-    if (signedDocs.length === 0) {
-      return {
-        valid: false,
-        error: 'No signed documents have been uploaded. Please upload signed documents before completing the task.'
+    for (const doc of successfulDocs) {
+      const checkResult = await SignedDocumentStorageService.checkSignedDocumentExists(task.id, doc.templateId)
+      if (!checkResult.exists || checkResult.files.length === 0) {
+        missingSignedDocs.push({
+          templateId: doc.templateId,
+          templateName: doc.templateName
+        })
       }
     }
 
-    // Optional: Check if all generated documents have corresponding signed versions
-    // This could be configurable business logic
-    const requireAllDocumentsSigned = false // Make this configurable
-    
-    if (requireAllDocumentsSigned && signedDocs.length < successfulDocs.length) {
+    if (missingSignedDocs.length > 0) {
+      const missingNames = missingSignedDocs.map(doc => doc.templateName).join(', ')
       return {
         valid: false,
-        error: `All generated documents must be signed. Generated: ${successfulDocs.length}, Signed: ${signedDocs.length}`
+        error: `Missing signed documents for: ${missingNames}. Please upload all signed documents before completing the task.`,
+        missingSignedDocs
       }
     }
 
-    return { valid: true }
+    return { 
+      valid: true,
+      signedDocumentCount: successfulDocs.length
+    }
   }
 
   /**

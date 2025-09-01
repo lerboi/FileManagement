@@ -3,7 +3,7 @@
 
 import TaskStatusBadge from './TaskStatusBadge'
 
-export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }) {
+export default function TaskCard({ task, onView, onRetry, onDownload, onDelete, onEditDraft}) {
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -94,7 +94,7 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
             <div>
               <p className="text-sm font-medium text-gray-500">Status</p>
               <div className="flex items-center mt-1">
-                <TaskStatusBadge status={task.status} />
+                <TaskStatusBadge status={task.status} isDraft={task.is_draft} />
               </div>
             </div>
             
@@ -184,42 +184,57 @@ export default function TaskCard({ task, onView, onRetry, onDownload, onDelete }
       {/* Bottom Action Buttons - All Bottom Right */}
       <div className="flex justify-end">
         <div className="flex space-x-2">
-          {/* Status-specific actions */}
-          {task.status === 'in_progress' && (
+          {/* Draft-specific actions */}
+          {task.is_draft ? (
             <button
-              onClick={() => onView(task)}
-              className="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onClick={() => onEditDraft(task)}
+              className="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-              Generate Docs
+              Continue Editing
             </button>
-          )}
-          
-          {task.generation_error && (
-            <button
-              onClick={() => onRetry(task)}
-              className="inline-flex items-center px-3 py-2 border border-orange-300 rounded-md text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Retry
-            </button>
-          )}
+          ) : (
+            <>
+              {/* Status-specific actions for non-draft tasks */}
+              {task.status === 'in_progress' && (
+                <button
+                  onClick={() => onView(task)}
+                  className="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Generate Docs
+                </button>
+              )}
+              
+              {task.generation_error && (
+                <button
+                  onClick={() => onRetry(task)}
+                  className="inline-flex items-center px-3 py-2 border border-orange-300 rounded-md text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Retry
+                </button>
+              )}
 
-          {/* View Button - Always show, bottom right */}
-          <button
-            onClick={() => onView(task)}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 616 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            View
-          </button>
+              {/* View Button - Always show for non-draft tasks */}
+              <button
+                onClick={() => onView(task)}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 616 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                View
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

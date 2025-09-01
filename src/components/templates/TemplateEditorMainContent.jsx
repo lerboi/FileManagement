@@ -199,18 +199,6 @@ export default function TemplateEditorMainContent({
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-4">
-          {/* Instructions */}
-          <div className="bg-white border rounded-lg p-3">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">How it works:</h4>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p>• <strong>Select text</strong> → Replace with field</p>
-              <p>• <strong>Click position</strong> → Insert field</p>
-              <p>• <strong>Click yellow fields</strong> → Remove/replace</p>
-              <p>• Smart cursor tracking for consecutive insertions</p>
-              <p>• Automatic range refresh prevents formatting issues</p>
-            </div>
-          </div>
-
           {/* Current Context */}
           {(selectedText || clickPosition) && !showFieldSelector && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -312,19 +300,6 @@ export default function TemplateEditorMainContent({
                 <p>• Offset: {lastCursorPosition.offset}</p>
                 <p>• Age: {Math.round((Date.now() - lastCursorPosition.timestamp) / 1000)}s</p>
                 <p>• Node: {lastCursorPosition.textNode?.nodeName || 'unknown'}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Debug: Content Status (only in development) */}
-          {isDevelopmentMode && (
-            <div className="bg-gray-100 border border-gray-300 rounded-lg p-3">
-              <h4 className="text-sm font-medium text-gray-800 mb-2">Debug: Content Status</h4>
-              <div className="text-xs text-gray-700 space-y-1">
-                <p>• HTML Content Length: {htmlContent?.length || 0}</p>
-                <p>• Editor Content Length: {editorRef.current?.innerHTML?.length || 0}</p>
-                <p>• Editor Ref Available: {editorRef.current ? 'Yes' : 'No'}</p>
-                <p>• Content Match: {editorRef.current?.innerHTML === htmlContent ? 'Yes' : 'No'}</p>
               </div>
             </div>
           )}

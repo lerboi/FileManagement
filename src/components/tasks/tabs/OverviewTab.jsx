@@ -1,7 +1,16 @@
 // src/components/tasks/tabs/OverviewTab.jsx
 'use client'
 
-export default function OverviewTab({ taskDetail, formatDate }) {
+import TaskCompletionSection from '../TaskCompletionSection'
+
+export default function OverviewTab({ 
+  taskDetail, 
+  formatDate, 
+  onTaskUpdated, 
+  showSuccessMessage, 
+  showErrorMessage,
+  onClose 
+}) {
   return (
     <div className="space-y-6">
       {/* Task Info Grid */}
@@ -92,6 +101,16 @@ export default function OverviewTab({ taskDetail, formatDate }) {
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{taskDetail.notes}</p>
         </div>
       )}
+
+      {/* Task Completion Section */}
+      <TaskCompletionSection
+        taskDetail={taskDetail}
+        onTaskUpdated={onTaskUpdated}
+        formatDate={formatDate}
+        showSuccessMessage={showSuccessMessage}
+        showErrorMessage={showErrorMessage}
+        onClose={onClose}
+      />
     </div>
   )
 }
