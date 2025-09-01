@@ -5,7 +5,7 @@ import { TaskWorkflowService } from '@/lib/services/taskWorkflowService'
 
 // POST - Retry failed document generation
 export async function POST(request, { params }) {
-  try {
+  try {s
     // Check authentication
     await requireSession()
 

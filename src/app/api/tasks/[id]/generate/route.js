@@ -7,7 +7,7 @@ import { TaskWorkflowService } from '@/lib/services/taskWorkflowService'
 export async function POST(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
 
@@ -65,7 +65,7 @@ export async function POST(request, { params }) {
 export async function GET(request, { params }) {
   try {
     // Check authentication
-    await requireAuth()
+    await requireSession()
 
     const { id } = await params
 
