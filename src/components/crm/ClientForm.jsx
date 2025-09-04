@@ -20,7 +20,9 @@ export default function ClientForm({ client = null, onSubmit, onCancel, loading 
     company: client?.company || '',
     notes: client?.notes || '',
     status: client?.status || 'active',
-    client_type: client?.client_type || 'individual'
+    client_type: client?.client_type || 'individual',
+    // Extended information
+    additional_notes: client?.client_info?.[0]?.additional_notes || ''
   })
 
   const [errors, setErrors] = useState({})
@@ -282,10 +284,31 @@ export default function ClientForm({ client = null, onSubmit, onCancel, loading 
         </div>
       </div>
 
+      {/* Extended Information */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-900 border-b pb-2">Extended Information</h3>
+        
+        <div>
+          <label htmlFor="additional_notes" className="block text-sm font-medium text-gray-700 mb-1">
+            Additional Notes
+          </label>
+          <textarea
+            id="additional_notes"
+            name="additional_notes"
+            rows={4}
+            value={formData.additional_notes}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Enter any additional notes or information about this client..."
+            disabled={loading}
+          />
+        </div>
+      </div>
+
       {/* Notes */}
       <div>
         <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-          Notes
+          General Notes
         </label>
         <textarea
           id="notes"

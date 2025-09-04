@@ -14,6 +14,7 @@ export default function ClientDetailsModal({
   const [loading, setLoading] = useState(false)
   const [currentMode, setCurrentMode] = useState(mode)
   const [error, setError] = useState('')
+  const [searchFilter, setSearchFilter] = useState('')
 
   useEffect(() => {
     if (isOpen && clientId && (mode === 'view' || mode === 'edit')) {
@@ -23,6 +24,15 @@ export default function ClientDetailsModal({
       setCurrentMode('create')
     }
   }, [isOpen, clientId, mode])
+
+  const shouldShowField = (fieldName, fieldValue) => {
+    if (!searchFilter) return true
+    const searchTerm = searchFilter.toLowerCase()
+    return (
+      fieldName.toLowerCase().includes(searchTerm) ||
+      (fieldValue && fieldValue.toString().toLowerCase().includes(searchTerm))
+    )
+  }
 
   const fetchClient = async () => {
     setLoading(true)
@@ -163,98 +173,131 @@ export default function ClientDetailsModal({
                     </button>
                   </div>
 
+                  {/* Search within client details */}
+                  <div className="mb-4">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Search client details..."
+                        value={searchFilter}
+                        onChange={(e) => setSearchFilter(e.target.value)}
+                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+
                   {/* Client Information Display */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Name:</span>
-                          <p className="text-gray-900">{client.first_name} {client.last_name}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Email:</span>
-                          <p className="text-gray-900">{client.email || 'Not provided'}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Phone:</span>
-                          <p className="text-gray-900">{client.phone || 'Not provided'}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Status:</span>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            client.status === 'active' ? 'bg-green-100 text-green-800' :
-                            client.status === 'inactive' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Client Type:</span>
-                          <p className="text-gray-900">{client.client_type.charAt(0).toUpperCase() + client.client_type.slice(1)}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Address</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Address:</span>
-                          <p className="text-gray-900">
-                            {client.address_line_1 && (
-                              <>
-                                {client.address_line_1}<br />
-                                {client.address_line_2 && <>{client.address_line_2}<br /></>}
-                                {client.city && <>{client.city} </>}
-                                {client.postal_code && <>{client.postal_code}<br /></>}
-                                {client.country}
-                              </>
-                            )}
-                            {!client.address_line_1 && 'Not provided'}
-                          </p>
+                  <div className="max-h-96 overflow-y-auto space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+                        <div className="space-y-3">
+                          <div style={{ display: shouldShowField('name', `${client.first_name} ${client.last_name}`) ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Name:</span>
+                            <p className="text-gray-900">{client.first_name} {client.last_name}</p>
+                          </div>
+                          <div style={{ display: shouldShowField('email', client.email || 'Not provided') ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Email:</span>
+                            <p className="text-gray-900">{client.email || 'Not provided'}</p>
+                          </div>
+                          <div style={{ display: shouldShowField('phone', client.phone || 'Not provided') ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Phone:</span>
+                            <p className="text-gray-900">{client.phone || 'Not provided'}</p>
+                          </div>
+                          <div style={{ display: shouldShowField('status', client.status) ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Status:</span>
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              client.status === 'active' ? 'bg-green-100 text-green-800' :
+                              client.status === 'inactive' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+                            </span>
+                          </div>
+                          <div style={{ display: shouldShowField('client type', client.client_type) ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Client Type:</span>
+                            <p className="text-gray-900">{client.client_type.charAt(0).toUpperCase() + client.client_type.slice(1)}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Professional Information</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Occupation:</span>
-                          <p className="text-gray-900">{client.occupation || 'Not provided'}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Company:</span>
-                          <p className="text-gray-900">{client.company || 'Not provided'}</p>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Address</h3>
+                        <div className="space-y-3">
+                          <div style={{ display: shouldShowField('address', client.address_line_1 || 'Not provided') ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Address:</span>
+                            <p className="text-gray-900">
+                              {client.address_line_1 && (
+                                <>
+                                  {client.address_line_1}<br />
+                                  {client.address_line_2 && <>{client.address_line_2}<br /></>}
+                                  {client.city && <>{client.city} </>}
+                                  {client.postal_code && <>{client.postal_code}<br /></>}
+                                  {client.country}
+                                </>
+                              )}
+                              {!client.address_line_1 && 'Not provided'}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Date of Birth:</span>
-                          <p className="text-gray-900">
-                            {client.date_of_birth ? new Date(client.date_of_birth).toLocaleDateString() : 'Not provided'}
-                          </p>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Professional Information</h3>
+                        <div className="space-y-3">
+                          <div style={{ display: shouldShowField('occupation', client.occupation || 'Not provided') ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Occupation:</span>
+                            <p className="text-gray-900">{client.occupation || 'Not provided'}</p>
+                          </div>
+                          <div style={{ display: shouldShowField('company', client.company || 'Not provided') ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Company:</span>
+                            <p className="text-gray-900">{client.company || 'Not provided'}</p>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Created:</span>
-                          <p className="text-gray-900">{new Date(client.created_at).toLocaleDateString()}</p>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
+                        <div className="space-y-3">
+                          <div style={{ display: shouldShowField('date of birth', client.date_of_birth ? new Date(client.date_of_birth).toLocaleDateString() : 'Not provided') ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Date of Birth:</span>
+                            <p className="text-gray-900">
+                              {client.date_of_birth ? new Date(client.date_of_birth).toLocaleDateString() : 'Not provided'}
+                            </p>
+                          </div>
+                          <div style={{ display: shouldShowField('created', new Date(client.created_at).toLocaleDateString()) ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Created:</span>
+                            <p className="text-gray-900">{new Date(client.created_at).toLocaleDateString()}</p>
+                          </div>
+                          <div style={{ display: shouldShowField('last updated', new Date(client.updated_at).toLocaleDateString()) ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Last Updated:</span>
+                            <p className="text-gray-900">{new Date(client.updated_at).toLocaleDateString()}</p>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-500">Last Updated:</span>
-                          <p className="text-gray-900">{new Date(client.updated_at).toLocaleDateString()}</p>
+                      </div>
+
+                      {/* Extended Information Section */}
+                      <div className="md:col-span-2">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Extended Information</h3>
+                        <div className="space-y-3">
+                          <div style={{ display: shouldShowField('additional notes', client.client_info?.[0]?.additional_notes || 'Not provided') ? 'block' : 'none' }}>
+                            <span className="text-sm font-medium text-gray-500">Additional Notes:</span>
+                            <p className="text-gray-900 bg-gray-50 p-3 rounded-md">
+                              {client.client_info?.[0]?.additional_notes || 'Not provided'}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {client.notes && (
-                    <div className="mt-6">
+                    <div className="mt-6" style={{ display: shouldShowField('notes', client.notes) ? 'block' : 'none' }}>
                       <h3 className="text-lg font-medium text-gray-900 mb-2">Notes</h3>
                       <p className="text-gray-700 bg-gray-50 p-4 rounded-md">{client.notes}</p>
                     </div>

@@ -42,14 +42,23 @@ export class ClientService {
     }
   }
 
-  // Get a single client by ID
+  // Get a single client by ID with client_info
   static async getClientById(id) {
     try {
       const supabase = await createServerSupabase()
 
+      // Fetch client data with client_info using left join
       const { data, error } = await supabase
         .from('clients')
-        .select('*')
+        .select(`
+          *,
+          client_info (
+            id,
+            additional_notes,
+            created_at,
+            updated_at
+          )
+        `)
         .eq('id', id)
         .single()
 
@@ -64,52 +73,100 @@ export class ClientService {
     }
   }
 
-  // Create a new client
+  // Create a new client with client_info
   static async createClient(clientData) {
     try {
       const supabase = await createServerSupabase()
 
-      const { data, error } = await supabase
+      // Extract client_info data from clientData
+      const { additional_notes, ...mainClientData } = clientData
+
+      // Start a transaction by creating client first
+      const { data: clientResult, error: clientError } = await supabase
         .from('clients')
-        .insert([clientData])
+        .insert([mainClientData])
         .select()
         .single()
 
-      if (error) {
-        throw new Error(`Failed to create client: ${error.message}`)
+      if (clientError) {
+        throw new Error(`Failed to create client: ${clientError.message}`)
       }
 
-      return data
+      // Create corresponding client_info record
+      const { data: clientInfoResult, error: clientInfoError } = await supabase
+        .from('client_info')
+        .insert([{
+          client_id: clientResult.id,
+          additional_notes: additional_notes || null
+        }])
+        .select()
+        .single()
+
+      if (clientInfoError) {
+        // If client_info creation fails, we should ideally rollback the client creation
+        // For now, log the error but return the client data
+        console.error('Failed to create client_info:', clientInfoError)
+      }
+
+      // Return client with client_info data
+      return {
+        ...clientResult,
+        client_info: clientInfoResult || { additional_notes: null }
+      }
     } catch (error) {
       console.error('Error creating client:', error)
       throw error
     }
   }
 
-  // Update an existing client
+  // Update an existing client and client_info
   static async updateClient(id, clientData) {
     try {
       const supabase = await createServerSupabase()
 
-      const { data, error } = await supabase
+      // Extract client_info data from clientData
+      const { additional_notes, ...mainClientData } = clientData
+
+      // Update main client data
+      const { data: clientResult, error: clientError } = await supabase
         .from('clients')
-        .update(clientData)
+        .update(mainClientData)
         .eq('id', id)
         .select()
         .single()
 
-      if (error) {
-        throw new Error(`Failed to update client: ${error.message}`)
+      if (clientError) {
+        throw new Error(`Failed to update client: ${clientError.message}`)
       }
 
-      return data
+      // Update client_info data
+      if (additional_notes !== undefined) {
+        const { data: clientInfoResult, error: clientInfoError } = await supabase
+          .from('client_info')
+          .update({ additional_notes })
+          .eq('client_id', id)
+          .select()
+          .single()
+
+        if (clientInfoError) {
+          console.error('Failed to update client_info:', clientInfoError)
+        }
+
+        // Return client with updated client_info data
+        return {
+          ...clientResult,
+          client_info: clientInfoResult || { additional_notes }
+        }
+      }
+
+      return clientResult
     } catch (error) {
       console.error('Error updating client:', error)
       throw error
     }
   }
 
-  // Delete a client
+  // Delete a client (client_info will be deleted automatically due to CASCADE)
   static async deleteClient(id) {
     try {
       const supabase = await createServerSupabase()

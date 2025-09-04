@@ -1,9 +1,10 @@
-// CREATE NEW FILE: src/app/api/tasks/[id]/preview/route.js
+// Updated src/app/api/tasks/[id]/preview/route.js
 import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/session'
 import { createServerSupabase } from '@/lib/supabase'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx'
 
-// GET - Preview generated document as HTML in browser
+// GET method stays the same (no changes to preview functionality)
 export async function GET(request, { params }) {
   try {
     // Check authentication
@@ -53,7 +54,7 @@ export async function GET(request, { params }) {
     // Convert blob to text
     const htmlContent = await fileData.text()
 
-    // Enhanced HTML with better styling and metadata
+    // Enhanced HTML with better styling and metadata (unchanged)
     const enhancedHTML = `
 <!DOCTYPE html>
 <html lang="en">
@@ -113,20 +114,6 @@ export async function GET(request, { params }) {
         p {
             margin-bottom: 12px;
             text-align: justify;
-        }
-        
-        .signature-section {
-            margin-top: 40px;
-            border-top: 1px solid #ddd;
-            padding-top: 20px;
-        }
-        
-        .signature-line {
-            margin-top: 30px;
-            border-bottom: 1px solid #333;
-            width: 300px;
-            height: 40px;
-            display: inline-block;
         }
         
         .print-button {
@@ -204,14 +191,14 @@ export async function GET(request, { params }) {
   }
 }
 
-// POST - Download document as file
+// POST - Download document as Word file using modern docx library
 export async function POST(request, { params }) {
   try {
     // Check authentication
     await requireSession()
 
     const { id } = await params
-    const { templateId, format = 'html' } = await request.json()
+    const { templateId } = await request.json()
 
     if (!id || !templateId) {
       return NextResponse.json({ error: 'Task ID and Template ID are required' }, { status: 400 })
@@ -248,50 +235,172 @@ export async function POST(request, { params }) {
 
     const htmlContent = await fileData.text()
 
-    if (format === 'html') {
-      // Return formatted HTML file
-      const fileName = `${document.fileName}.html`
-      const enhancedHTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${document.templateName} - ${task.client_name}</title>
-    <style>
-        body { font-family: 'Times New Roman', serif; line-height: 1.6; max-width: 8.5in; margin: 0 auto; padding: 1in; }
-        h1, h2, h3 { color: #333; }
-        p { margin-bottom: 12px; text-align: justify; }
-    </style>
-</head>
-<body>
-    <h1>${document.templateName}</h1>
-    <p><strong>Client:</strong> ${task.client_name}</p>
-    <p><strong>Generated:</strong> ${new Date().toLocaleDateString()}</p>
-    <hr>
-    ${htmlContent}
-</body>
-</html>`
+    try {
+      // Helper function to convert HTML to plain text and preserve structure
+      const htmlToText = (html) => {
+        return html
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<p[^>]*>/gi, '')
+          .replace(/<\/div>/gi, '\n')
+          .replace(/<div[^>]*>/gi, '')
+          .replace(/<h[1-6][^>]*>/gi, '\n\n**')
+          .replace(/<\/h[1-6]>/gi, '**\n')
+          .replace(/<li[^>]*>/gi, '• ')
+          .replace(/<\/li>/gi, '\n')
+          .replace(/<[^>]*>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/\n\s*\n\s*\n/g, '\n\n')
+          .trim()
+      }
 
-      return new Response(enhancedHTML, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/html',
-          'Content-Disposition': `attachment; filename="${fileName}"`,
+      // Convert HTML content to structured text
+      const plainTextContent = htmlToText(htmlContent)
+      
+      // Create paragraphs for the Word document
+      const paragraphs = []
+
+      // Add document title
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: document.templateName,
+              bold: true,
+              size: 32, // 16pt font
+              font: 'Times New Roman'
+            })
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 400 }
+        })
+      )
+
+      // Add client and service information
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Client: ${task.client_name} | Service: ${task.service_name}`,
+              italics: true,
+              size: 20, // 10pt font
+              font: 'Times New Roman'
+            })
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 }
+        })
+      )
+
+      // Add generation date
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Generated: ${new Date(document.generatedAt).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}`,
+              italics: true,
+              size: 20, // 10pt font
+              font: 'Times New Roman'
+            })
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 400 }
+        })
+      )
+
+      // Process content line by line
+      const contentLines = plainTextContent.split('\n')
+      contentLines.forEach(line => {
+        const trimmedLine = line.trim()
+        
+        if (trimmedLine) {
+          // Check if it's a heading (marked with **)
+          if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
+            const headingText = trimmedLine.replace(/\*\*/g, '')
+            paragraphs.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: headingText,
+                    bold: true,
+                    size: 28, // 14pt font
+                    font: 'Times New Roman'
+                  })
+                ],
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 300, after: 200 }
+              })
+            )
+          } else {
+            // Regular paragraph
+            paragraphs.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: trimmedLine,
+                    size: 24, // 12pt font
+                    font: 'Times New Roman'
+                  })
+                ],
+                alignment: AlignmentType.JUSTIFIED,
+                spacing: { after: 200 }
+              })
+            )
+          }
+        } else {
+          // Empty line for spacing
+          paragraphs.push(
+            new Paragraph({
+              children: [new TextRun({ text: '', size: 24 })],
+              spacing: { after: 100 }
+            })
+          )
         }
       })
+
+      // Create the Word document
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: paragraphs
+        }]
+      })
+
+      // Generate the document buffer
+      const buffer = await Packer.toBuffer(doc)
+
+      // Generate filename
+      const sanitizedTemplateName = document.templateName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_')
+      const sanitizedClientName = task.client_name.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_')
+      const fileName = `${sanitizedTemplateName}_${sanitizedClientName}.docx`
+
+      // Return Word document
+      return new Response(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'Content-Length': buffer.length.toString(),
+        }
+      })
+
+    } catch (conversionError) {
+      console.error('Error creating Word document:', conversionError)
+      return NextResponse.json({ 
+        error: `Failed to convert document to Word format: ${conversionError.message}` 
+      }, { status: 500 })
     }
 
-    // Default to original content
-    return new Response(htmlContent, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/html',
-        'Content-Disposition': `attachment; filename="${document.fileName}.html"`,
-      }
-    })
-
   } catch (error) {
-    console.error('Error downloading document:', error)
+    console.error('Error downloading document as Word:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
