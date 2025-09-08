@@ -290,19 +290,6 @@ export default function TemplateEditorMainContent({
               <p>• Smart cursor tracking enabled</p>
             </div>
           </div>
-
-          {/* Cursor Position Debug Info (only in development) */}
-          {isDevelopmentMode && lastCursorPosition && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <h4 className="text-sm font-medium text-yellow-800 mb-2">Debug: Cursor Info</h4>
-              <div className="text-xs text-yellow-700 space-y-1">
-                <p>• Position: ({Math.round(lastCursorPosition.x)}, {Math.round(lastCursorPosition.y)})</p>
-                <p>• Offset: {lastCursorPosition.offset}</p>
-                <p>• Age: {Math.round((Date.now() - lastCursorPosition.timestamp) / 1000)}s</p>
-                <p>• Node: {lastCursorPosition.textNode?.nodeName || 'unknown'}</p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

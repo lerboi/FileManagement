@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/session'
 import { ServiceTemplateService } from '@/lib/services/serviceTemplateService'
+import { createServerSupabase } from '@/lib/supabase'
 
 // GET - Get active templates available for service selection
 export async function GET(request) {
@@ -9,11 +10,12 @@ export async function GET(request) {
     // Check authentication
     await requireSession()
     
+    const supabase = await createServerSupabase()
     const { searchParams } = new URL(request.url)
     const groupByType = searchParams.get('groupByType') === 'true'
     
     if (groupByType) {
-      const result = await ServiceTemplateService.getTemplatesByType()
+      const result = await ServiceTemplateService.getTemplatesByType(supabase)
       
       if (!result.success) {
         return NextResponse.json(
@@ -29,7 +31,7 @@ export async function GET(request) {
         totalTemplates: result.totalTemplates
       })
     } else {
-      const result = await ServiceTemplateService.getActiveTemplatesForSelection()
+      const result = await ServiceTemplateService.getActiveTemplatesForSelection(supabase)
       
       if (!result.success) {
         return NextResponse.json(
@@ -59,6 +61,7 @@ export async function POST(request) {
     // Check authentication
     await requireSession()
     
+    const supabase = await createServerSupabase()
     const { template_ids, action = 'validate' } = await request.json()
     
     if (!template_ids || !Array.isArray(template_ids)) {
@@ -70,7 +73,7 @@ export async function POST(request) {
     
     if (action === 'preview') {
       // Get service generation preview
-      const result = await ServiceTemplateService.getServiceGenerationPreview(template_ids)
+      const result = await ServiceTemplateService.getServiceGenerationPreview(supabase, template_ids)
       
       if (!result.success) {
         return NextResponse.json(
@@ -85,7 +88,7 @@ export async function POST(request) {
       })
     } else {
       // Default: validate template selection
-      const result = await ServiceTemplateService.validateTemplateSelection(template_ids)
+      const result = await ServiceTemplateService.validateTemplateSelection(supabase, template_ids)
       
       if (!result.valid) {
         return NextResponse.json(
@@ -101,7 +104,7 @@ export async function POST(request) {
         success: true,
         valid: result.valid,
         templates: result.templates,
-        customFields: result.customFields,
+        placeholderValues: result.placeholderValues,
         warnings: result.warnings || [],
         stats: result.stats
       })

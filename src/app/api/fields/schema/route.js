@@ -2,9 +2,9 @@
 import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/session'
 import { FieldSchemaService } from '@/lib/services/fieldSchemaService'
-import { createServiceSupabase } from '@/lib/supabase'
+import { createServerSupabase } from '@/lib/supabase'
 
-// GET - Fetch current client table schema
+// GET - Fetch current client table schema + document placeholders
 export async function GET(request) {
   try {
     // Check authentication
@@ -13,21 +13,59 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const includeComputed = searchParams.get('includeComputed') !== 'false'
+    const includePlaceholders = searchParams.get('includePlaceholders') !== 'false'
     
-    let fields = await FieldSchemaService.getClientTableSchema()
+    // Get client table schema fields
+    let clientFields = await FieldSchemaService.getClientTableSchema()
+    
+    // Get document placeholders
+    let placeholderFields = []
+    if (includePlaceholders) {
+      try {
+        const supabase = await createServerSupabase()
+        const { data: placeholders, error } = await supabase
+          .from('document_placeholders')
+          .select('*')
+          .order('name', { ascending: true })
+        
+        if (!error && placeholders) {
+          placeholderFields = placeholders.map(placeholder => ({
+            name: placeholder.name,
+            label: placeholder.label,
+            description: placeholder.description,
+            type: placeholder.field_type,
+            category: 'document',
+            computed: false,
+            custom: true,
+            source: 'placeholder',
+            placeholder_id: placeholder.id,
+            created_at: placeholder.created_at
+          }))
+        }
+      } catch (placeholderError) {
+        console.error('Error fetching document placeholders:', placeholderError)
+        // Continue without placeholders if fetch fails
+      }
+    }
+    
+    // Combine client fields and placeholder fields
+    let allFields = [
+      ...clientFields.map(field => ({ ...field, source: 'client' })),
+      ...placeholderFields
+    ]
     
     // Filter by category if specified
     if (category && category !== 'all') {
-      fields = fields.filter(field => field.category === category)
+      allFields = allFields.filter(field => field.category === category)
     }
     
     // Filter computed fields if specified
     if (!includeComputed) {
-      fields = fields.filter(field => !field.computed)
+      allFields = allFields.filter(field => !field.computed)
     }
     
     // Group fields by category for easier frontend consumption
-    const fieldsByCategory = fields.reduce((groups, field) => {
+    const fieldsByCategory = allFields.reduce((groups, field) => {
       const cat = field.category || 'other'
       if (!groups[cat]) groups[cat] = []
       groups[cat].push(field)
@@ -43,12 +81,14 @@ export async function GET(request) {
     
     return NextResponse.json({
       success: true,
-      fields,
+      fields: allFields,
       fieldsByCategory,
       categories,
-      totalFields: fields.length,
-      computedFields: fields.filter(f => f.computed).length,
-      regularFields: fields.filter(f => !f.computed).length
+      totalFields: allFields.length,
+      clientFields: clientFields.length,
+      placeholderFields: placeholderFields.length,
+      computedFields: allFields.filter(f => f.computed).length,
+      regularFields: allFields.filter(f => !f.computed).length
     })
     
   } catch (error) {
@@ -63,7 +103,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Validate field mappings against current schema (including custom fields)
+// POST - Validate field mappings against current schema (including placeholders)
 export async function POST(request) {
   try {
     // Check authentication
@@ -82,11 +122,28 @@ export async function POST(request) {
     const schema = await FieldSchemaService.getClientTableSchema()
     const systemFieldNames = schema.map(f => f.name)
     
-    // Get custom fields for this template if templateId is provided
+    // Get document placeholders
+    let placeholderFieldNames = []
+    try {
+      const supabase = await createServerSupabase()
+      const { data: placeholders, error } = await supabase
+        .from('document_placeholders')
+        .select('name')
+      
+      if (!error && placeholders) {
+        placeholderFieldNames = placeholders.map(p => p.name)
+        console.log(`Found ${placeholderFieldNames.length} document placeholders for validation`)
+      }
+    } catch (placeholderError) {
+      console.error('Error fetching placeholders for validation:', placeholderError)
+      // Continue validation without placeholders if fetch fails
+    }
+    
+    // Get custom fields for this template if templateId is provided (legacy support)
     let customFieldNames = []
     if (templateId) {
       try {
-        const supabase = createServiceSupabase()
+        const supabase = await createServerSupabase()
         const { data: template, error } = await supabase
           .from('document_templates')
           .select('custom_fields')
@@ -98,7 +155,7 @@ export async function POST(request) {
             .filter(cf => cf.name) // Only fields with names
             .map(cf => cf.name)
           
-          console.log(`Found ${customFieldNames.length} custom fields for template ${templateId}:`, customFieldNames)
+          console.log(`Found ${customFieldNames.length} legacy custom fields for template ${templateId}`)
         }
       } catch (customFieldError) {
         console.error('Error fetching custom fields for validation:', customFieldError)
@@ -106,12 +163,13 @@ export async function POST(request) {
       }
     }
     
-    // Combine system fields with custom fields
-    const availableFieldNames = [...systemFieldNames, ...customFieldNames]
+    // Combine all available field names
+    const availableFieldNames = [...systemFieldNames, ...placeholderFieldNames, ...customFieldNames]
     
     console.log('Validating against fields:', {
       systemFields: systemFieldNames.length,
-      customFields: customFieldNames.length,
+      placeholderFields: placeholderFieldNames.length,
+      legacyCustomFields: customFieldNames.length,
       total: availableFieldNames.length
     })
     
@@ -121,16 +179,28 @@ export async function POST(request) {
     
     Object.entries(fieldMappings).forEach(([placeholder, fieldName]) => {
       if (availableFieldNames.includes(fieldName)) {
-        // Find field info (system or custom)
+        // Find field info (system, placeholder, or custom)
         let fieldInfo = schema.find(f => f.name === fieldName)
-        if (!fieldInfo && customFieldNames.includes(fieldName)) {
-          // Create field info for custom field
+        
+        if (!fieldInfo && placeholderFieldNames.includes(fieldName)) {
+          // Create field info for placeholder field
+          fieldInfo = {
+            name: fieldName,
+            type: 'placeholder',
+            category: 'document',
+            computed: false,
+            custom: true,
+            source: 'placeholder'
+          }
+        } else if (!fieldInfo && customFieldNames.includes(fieldName)) {
+          // Create field info for legacy custom field
           fieldInfo = {
             name: fieldName,
             type: 'custom',
             category: 'custom',
             computed: false,
-            custom: true
+            custom: true,
+            source: 'legacy'
           }
         }
         
@@ -143,7 +213,7 @@ export async function POST(request) {
         invalidMappings.push({
           placeholder,
           fieldName,
-          reason: 'Field no longer exists in schema or custom fields'
+          reason: 'Field no longer exists in schema, placeholders, or custom fields'
         })
       }
     })
@@ -152,11 +222,13 @@ export async function POST(request) {
     availableFieldNames.forEach(fieldName => {
       const usageCount = validMappings.filter(m => m.fieldName === fieldName).length
       if (usageCount > 1) {
-        // Check if it's a computed field (those can be used multiple times)
+        // Check if it's a computed field or placeholder (those can be used multiple times)
         const fieldInfo = schema.find(f => f.name === fieldName)
-        const isComputed = fieldInfo?.computed || customFieldNames.includes(fieldName) // Custom fields can be reused
+        const isReusable = fieldInfo?.computed || 
+                          placeholderFieldNames.includes(fieldName) || 
+                          customFieldNames.includes(fieldName)
         
-        if (!isComputed) {
+        if (!isReusable) {
           warnings.push({
             type: 'multiple_usage',
             fieldName,
@@ -177,6 +249,7 @@ export async function POST(request) {
         totalMappings: Object.keys(fieldMappings).length,
         validCount: validMappings.length,
         invalidCount: invalidMappings.length,
+        placeholderFieldsValidated: placeholderFieldNames.length,
         customFieldsValidated: customFieldNames.length
       }
     })

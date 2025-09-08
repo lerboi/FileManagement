@@ -256,11 +256,11 @@ export default function CustomFieldsStep({
       {/* Header */}
       <div className="mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-2">
-          Service Requirements
+          Document Information Required
         </h3>
         <p className="text-gray-600">
           Fill in the required information for <span className="font-medium">{selectedService?.name}</span>.
-          This data will be used to populate the document templates.
+          This data will be used to populate the document placeholders in your templates.
         </p>
       </div>
 
@@ -269,9 +269,9 @@ export default function CustomFieldsStep({
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No Custom Fields Required</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No Document Information Required</h3>
           <p className="mt-1 text-sm text-gray-500">
-            This service doesn't require any additional information. You can proceed to client selection.
+            This services templates dont require any additional information. You can proceed to client selection.
           </p>
         </div>
       ) : (
@@ -337,12 +337,12 @@ export default function CustomFieldsStep({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div className="text-sm text-blue-800">
-                <p className="font-medium mb-1">Field Information</p>
+                <p className="font-medium mb-1">Document Placeholder Information</p>
                 <p>
-                  These fields will be used to populate the document templates in this service.
+                  These fields represent placeholders in your document templates that need actual values.
                   {requiredFields.length > 0 && (
                     <span className="ml-1">
-                      All required fields must be completed before proceeding.
+                      All required placeholders must be filled before documents can be generated.
                     </span>
                   )}
                 </p>

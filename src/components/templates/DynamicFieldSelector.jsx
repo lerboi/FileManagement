@@ -17,33 +17,33 @@ export default function DynamicFieldSelector({
   const [categories, setCategories] = useState([])
 
   useEffect(() => {
-    if (availableFields && availableFields.length > 0) {
-      // Use fields passed from parent (includes custom fields)
-      console.log('Using available fields from parent:', availableFields.length, 'fields')
-      setFields(availableFields)
-      
-      // Extract unique categories
-      const uniqueCategories = [...new Set(availableFields.map(f => f.category))].sort()
-      setCategories(uniqueCategories)
-      setLoading(false)
-    } else {
-      // Fallback: fetch fields if none provided
-      fetchAvailableFields()
-    }
-  }, [availableFields])
+    console.log('DynamicFieldSelector: Fetching unified fields from API')
+    fetchAvailableFields()
+  }, [])
 
   const fetchAvailableFields = async () => {
     setLoading(true)
     try {
+      console.log('DynamicFieldSelector: Fetching from /api/fields/schema')
       const response = await fetch('/api/fields/schema')
       if (!response.ok) throw new Error('Failed to fetch fields')
       
       const data = await response.json()
+      console.log('DynamicFieldSelector: API response:', data)
+      
       setFields(data.fields || [])
       
       // Extract unique categories
       const uniqueCategories = [...new Set(data.fields?.map(f => f.category) || [])]
       setCategories(uniqueCategories.sort())
+      
+      console.log('DynamicFieldSelector loaded fields:', {
+        total: data.fields?.length || 0,
+        clientFields: data.clientFields || 0,
+        placeholderFields: data.placeholderFields || 0,
+        categories: uniqueCategories,
+        documentFields: data.fields?.filter(f => f.source === 'placeholder') || []
+      })
     } catch (error) {
       console.error('Error fetching fields:', error)
       // Fallback to basic fields
@@ -85,6 +85,7 @@ export default function DynamicFieldSelector({
       financial: '💰',
       legal: '⚖️',
       system: '🔧',
+      document: '📄', // New category for document placeholders
       custom: '🔧',
       other: '📝'
     }
@@ -99,6 +100,7 @@ export default function DynamicFieldSelector({
       financial: 'bg-yellow-50 border-yellow-200 text-yellow-800',
       legal: 'bg-red-50 border-red-200 text-red-800',
       system: 'bg-gray-50 border-gray-200 text-gray-800',
+      document: 'bg-orange-50 border-orange-200 text-orange-800', // New category color
       custom: 'bg-indigo-50 border-indigo-200 text-indigo-800',
       other: 'bg-slate-50 border-slate-200 text-slate-800'
     }
@@ -203,7 +205,17 @@ export default function DynamicFieldSelector({
                               computed
                             </span>
                           )}
-                          {field.custom && (
+                          {field.source === 'placeholder' && (
+                            <span className="ml-1 px-1 py-0.5 text-xs bg-orange-100 text-orange-700 rounded">
+                              document
+                            </span>
+                          )}
+                          {field.source === 'legacy' && (
+                            <span className="ml-1 px-1 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded">
+                              legacy
+                            </span>
+                          )}
+                          {field.custom && !field.source && (
                             <span className="ml-1 px-1 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded">
                               custom
                             </span>
@@ -234,13 +246,19 @@ export default function DynamicFieldSelector({
       <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-500 text-center">
         {filteredFields.length} field{filteredFields.length !== 1 ? 's' : ''} available
         {searchTerm && ` (filtered from ${fields.length})`}
-        {availableFields && (
-          <div className="mt-1">
+        <div className="mt-1 space-x-2">
+          <span className="text-blue-600">
+            {fields.filter(f => f.source === 'client').length} client
+          </span>
+          <span className="text-orange-600">
+            {fields.filter(f => f.source === 'placeholder').length} document
+          </span>
+          {fields.filter(f => f.source === 'legacy').length > 0 && (
             <span className="text-indigo-600">
-              {fields.filter(f => f.custom).length} custom field{fields.filter(f => f.custom).length !== 1 ? 's' : ''}
+              {fields.filter(f => f.source === 'legacy').length} legacy
             </span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

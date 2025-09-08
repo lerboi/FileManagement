@@ -125,7 +125,7 @@ export class TaskDocumentService {
       // Fetch templates with HTML content
       const { data: templates, error: templatesError } = await supabase
         .from('document_templates')
-        .select('id, name, html_content, field_mappings, custom_fields')
+        .select('id, name, html_content, field_mappings')
         .in('id', task.services.template_ids)
 
       if (templatesError) {

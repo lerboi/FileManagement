@@ -102,15 +102,15 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, onDr
               custom_field_values: draftCustomFieldValues // Explicitly preserve
             }))
             
-            // Load custom fields for this service
+            // Load placeholders for this service
             try {
-              const response = await fetch(`/api/services/${service.id}/custom-fields`)
+              const response = await fetch(`/api/services/${service.id}/placeholders`)
               if (response.ok) {
                 const data = await response.json()
-                setServiceCustomFields(data.customFields || [])
+                setServiceCustomFields(data.placeholders || [])
               }
             } catch (error) {
-              console.error('Error fetching service custom fields:', error)
+              console.error('Error fetching service placeholders:', error)
             }
           }
         }
@@ -195,16 +195,16 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, onDr
               custom_field_values: draftCustomFieldValues // Explicitly preserve
             }))
             
-            // Load custom fields for this service
+            // Load placeholders for this service
             try {
-              const response = await fetch(`/api/services/${service.id}/custom-fields`)
+              const response = await fetch(`/api/services/${service.id}/placeholders`)
               if (response.ok) {
                 const data = await response.json()
-                loadedServiceCustomFields = data.customFields || []
+                loadedServiceCustomFields = data.placeholders || []
                 setServiceCustomFields(loadedServiceCustomFields)
               }
             } catch (error) {
-              console.error('Error fetching service custom fields:', error)
+              console.error('Error fetching service placeholders:', error)
             }
           }
         }
@@ -282,16 +282,27 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, onDr
     }))
     setError('')
 
-    // Fetch service custom fields
+    // Fetch service placeholders (requirements from templates)
     try {
-      const response = await fetch(`/api/services/${service.id}/custom-fields`)
+      const response = await fetch(`/api/services/${service.id}/placeholders`)
       if (response.ok) {
         const data = await response.json()
-        setServiceCustomFields(data.customFields || [])
+        setServiceCustomFields(data.placeholders || [])
+        
+        // Log the placeholders for debugging
+        console.log('Service placeholders loaded:', {
+          serviceName: data.serviceName,
+          placeholderCount: data.placeholders?.length || 0,
+          templateCount: data.templateCount,
+          placeholders: data.placeholders
+        })
+      } else {
+        throw new Error('Failed to fetch service requirements')
       }
     } catch (error) {
-      console.error('Error fetching service custom fields:', error)
+      console.error('Error fetching service placeholders:', error)
       setError('Failed to load service requirements')
+      setServiceCustomFields([]) // Set empty array on error
     }
   }
 

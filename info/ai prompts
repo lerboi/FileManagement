@@ -16,3 +16,12 @@ Phone	+919024082454
 Email	nikhil.saini@unitedgarments.in
 Created By	(not set)
 Created On
+
+1. Create database table with migration
+2. Add 2 mock placeholders for testing
+3. Create placeholder management APIs (CRUD operations)
+4. Update field schema API to merge client fields + placeholders
+5. Transform UI components (CustomFieldBuilder → PlaceholderCreator, update tabs)
+6. Update DynamicFieldSelector to use unified field list
+7. Remove custom_fields column and related code
+8. Test the complete workflow

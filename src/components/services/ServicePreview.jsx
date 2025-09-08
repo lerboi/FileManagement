@@ -254,34 +254,6 @@ export default function ServicePreview({
           </div>
         </div>
       )}
-
-      {/* Next Steps */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-md font-medium text-blue-900 mb-2">What happens next?</h4>
-        <div className="text-sm text-blue-800 space-y-2">
-          <div className="flex items-start">
-            <span className="font-semibold mr-2">1.</span>
-            <span>Service will be created with the selected templates</span>
-          </div>
-          <div className="flex items-start">
-            <span className="font-semibold mr-2">2.</span>
-            <span>You can use this service to create tasks for clients</span>
-          </div>
-          <div className="flex items-start">
-            <span className="font-semibold mr-2">3.</span>
-            <span>
-              {customFieldsPreview && customFieldsPreview.customFields?.length > 0
-                ? `Users will fill ${customFieldsPreview.customFields.length} custom field${customFieldsPreview.customFields.length !== 1 ? 's' : ''} when creating tasks`
-                : 'Tasks will use standard client data fields'
-              }
-            </span>
-          </div>
-          <div className="flex items-start">
-            <span className="font-semibold mr-2">4.</span>
-            <span>All {templateValidation?.documentsToGenerate || serviceData.template_ids?.length || 0} documents will be generated automatically</span>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

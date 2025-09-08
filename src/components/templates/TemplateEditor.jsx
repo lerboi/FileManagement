@@ -1,10 +1,9 @@
 // src/components/templates/TemplateEditor.jsx
 'use client'
-
 import { useState, useRef, useEffect } from 'react'
 import DynamicFieldSelector from './DynamicFieldSelector'
 import TemplateEditorMainContent from './TemplateEditorMainContent'
-import CustomFieldBuilder from './CustomFieldBuilder'
+import PlaceholderCreator from './PlaceholderCreator'
 
 export default function TemplateEditor({ 
   template, 
@@ -25,7 +24,6 @@ export default function TemplateEditor({
   const [lastCursorPosition, setLastCursorPosition] = useState(null)
   
   // New state for custom fields and tabs
-  const [customFields, setCustomFields] = useState(template?.custom_fields || [])
   const [activeTab, setActiveTab] = useState('content')
   
   // Refs
@@ -175,80 +173,23 @@ export default function TemplateEditor({
     syncHtmlContent()
   }, [changes])
 
-  // API Functions
+  // Update fetchAvailableFields to use new unified API
   const fetchAvailableFields = async () => {
     try {
-      // Fetch system fields from schema
-      const schemaResponse = await fetch('/api/fields/schema')
-      let systemFields = []
-      if (schemaResponse.ok) {
-        const schemaData = await schemaResponse.json()
-        systemFields = schemaData.fields || []
+      const response = await fetch('/api/fields/schema')
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableFields(data.fields || [])
+        
+        console.log('Available fields updated:', {
+          totalFields: data.fields?.length || 0,
+          clientFields: data.clientFields || 0,
+          placeholderFields: data.placeholderFields || 0
+        })
       }
-
-      // Fetch custom fields from the template in database
-      let customFieldsFromDB = []
-      if (template?.id) {
-        try {
-          const customFieldsResponse = await fetch(`/api/templates/${template.id}/custom-fields`)
-          if (customFieldsResponse.ok) {
-            const customFieldsData = await customFieldsResponse.json()
-            customFieldsFromDB = (customFieldsData.customFields || []).map(cf => ({
-              name: cf.name,
-              label: cf.label,
-              description: cf.description || `Custom field: ${cf.label}`,
-              category: 'custom',
-              computed: false,
-              custom: true
-            }))
-          }
-        } catch (customFieldError) {
-          console.error('Error fetching custom fields from database:', customFieldError)
-          // Fallback to local state custom fields if database fetch fails
-          customFieldsFromDB = customFields.map(cf => ({
-            name: cf.name,
-            label: cf.label,
-            description: cf.description || `Custom field: ${cf.label}`,
-            category: 'custom',
-            computed: false,
-            custom: true
-          }))
-        }
-      } else {
-        // If no template ID, use local state custom fields
-        customFieldsFromDB = customFields.map(cf => ({
-          name: cf.name,
-          label: cf.label,
-          description: cf.description || `Custom field: ${cf.label}`,
-          category: 'custom',
-          computed: false,
-          custom: true
-        }))
-      }
-
-      // Combine system fields with custom fields from database
-      const allFields = [...systemFields, ...customFieldsFromDB]
-      setAvailableFields(allFields)
-      
-      console.log('Available fields updated:', {
-        systemFields: systemFields.length,
-        customFields: customFieldsFromDB.length,
-        total: allFields.length
-      })
-      
     } catch (error) {
       console.error('Error fetching available fields:', error)
-      
-      // Fallback: use only local custom fields if everything fails
-      const fallbackCustomFields = customFields.map(cf => ({
-        name: cf.name,
-        label: cf.label,
-        description: cf.description || `Custom field: ${cf.label}`,
-        category: 'custom',
-        computed: false,
-        custom: true
-      }))
-      setAvailableFields(fallbackCustomFields)
+      setAvailableFields([])
     }
   }
 
@@ -582,17 +523,22 @@ export default function TemplateEditor({
     }
   }
 
-  // Custom Fields Management
-  const handleCustomFieldsChange = (updatedFields) => {
-    setCustomFields(updatedFields)
-    // Note: Don't call fetchAvailableFields() here as it causes API calls on every keystroke
-    // Only refresh fields when they are actually saved
-  }
-
-  const handleFieldSaved = async () => {
-    // Refresh available fields from database when a custom field is saved
-    console.log('Custom field saved, refreshing available fields from database')
-    await fetchAvailableFields()
+  // Update handlePlaceholderCreated to refresh fields
+  const handlePlaceholderCreated = (newPlaceholder) => {
+    // Refresh available fields when a new placeholder is created
+    fetchAvailableFields()
+    
+    // Show success message
+    const successDiv = document.createElement('div')
+    successDiv.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50'
+    successDiv.textContent = `Placeholder "${newPlaceholder.label}" created and ready to use!`
+    document.body.appendChild(successDiv)
+    
+    setTimeout(() => {
+      if (document.body.contains(successDiv)) {
+        document.body.removeChild(successDiv)
+      }
+    }, 3000)
   }
 
   // Tab switching handler
@@ -655,7 +601,7 @@ export default function TemplateEditor({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             fieldMappings: templateFieldMappings,
-            templateId: template?.id // Pass template ID for custom fields validation
+            templateId: template?.id
           })
         })
         
@@ -671,12 +617,69 @@ export default function TemplateEditor({
           }
         }
       }
+
+      // Get placeholder definitions for custom_fields
+      let customFields = []
+      const placeholderNames = [...new Set(Object.values(templateFieldMappings))]
+      
+      if (placeholderNames.length > 0) {
+        try {
+          // Fetch placeholder definitions from the database
+          const placeholdersResponse = await fetch('/api/placeholders')
+          if (placeholdersResponse.ok) {
+            const placeholdersData = await placeholdersResponse.json()
+            const allPlaceholders = placeholdersData.placeholders || []
+            
+            // Format placeholders to match the expected custom_fields format
+            customFields = placeholderNames
+              .map(name => {
+                const placeholder = allPlaceholders.find(p => p.name === name)
+                if (placeholder) {
+                  return {
+                    name: placeholder.name,
+                    label: placeholder.label,
+                    description: placeholder.description,
+                    type: placeholder.field_type,
+                    required: true, // All template placeholders are required
+                    category: 'document',
+                    source: 'placeholder',
+                    placeholder_id: placeholder.id
+                  }
+                } else {
+                  // Create a placeholder definition for missing placeholders
+                  return {
+                    name: name,
+                    label: name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    description: `Document placeholder: ${name}`,
+                    type: 'text',
+                    required: true,
+                    category: 'missing',
+                    source: 'missing'
+                  }
+                }
+              })
+              .filter(Boolean)
+          }
+        } catch (error) {
+          console.error('Error fetching placeholder definitions:', error)
+          // Create basic definitions for all placeholders if fetch fails
+          customFields = placeholderNames.map(name => ({
+            name: name,
+            label: name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            description: `Document placeholder: ${name}`,
+            type: 'text',
+            required: true,
+            category: 'document',
+            source: 'fallback'
+          }))
+        }
+      }
       
       const templateData = {
         ...template,
         html_content: currentHtml,
         field_mappings: templateFieldMappings,
-        custom_fields: customFields, // Include custom fields
+        custom_fields: customFields, // Store placeholder definitions in custom_fields
         status: 'active'
       }
 
@@ -704,8 +707,6 @@ export default function TemplateEditor({
                 <span>{getFieldCount()} field placeholders</span>
                 <span>•</span>
                 <span>{changes.length} changes made</span>
-                <span>•</span>
-                <span>{customFields.length} custom fields</span>
                 {fieldValidation && (
                   <>
                     <span>•</span>
@@ -765,8 +766,6 @@ export default function TemplateEditor({
               <span>{getFieldCount()} field placeholders</span>
               <span>•</span>
               <span>{changes.length} changes made</span>
-              <span>•</span>
-              <span>{customFields.length} custom fields</span>
               {fieldValidation && (
                 <>
                   <span>•</span>
@@ -809,19 +808,17 @@ export default function TemplateEditor({
             Document Content
           </button>
           <button
-            onClick={() => handleTabSwitch('fields')}
+            onClick={() => handleTabSwitch('create-placeholder')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'fields'
+              activeTab === 'create-placeholder'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Custom Fields
-            {customFields.length > 0 && (
-              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {customFields.length}
-              </span>
-            )}
+            Create New Placeholder
+            <svg className="w-4 h-4 ml-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
           </button>
         </nav>
       </div>
@@ -849,11 +846,8 @@ export default function TemplateEditor({
           isDevelopmentMode={process.env.NODE_ENV === 'development'}
         />
       ) : (
-        <CustomFieldBuilder
-          fields={customFields}
-          onChange={handleCustomFieldsChange}
-          onFieldSaved={handleFieldSaved}
-          templateId={template?.id}
+        <PlaceholderCreator
+          onPlaceholderCreated={handlePlaceholderCreated}
         />
       )}
 
@@ -865,8 +859,7 @@ export default function TemplateEditor({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <p><strong>Enhanced Template Editor:</strong> Use the "Document Content" tab to map fields to your template content, and the "Custom Fields" tab to define additional fields specific to this trust type. 
-              Custom fields will automatically appear in the field selector and can be used in document generation.</p>
+              <p><strong>Enhanced Template Editor:</strong> Use the "Document Content" tab to map fields to your template content, and the "Create New Placeholder" tab to create reusable placeholders available across all templates.</p>
             </div>
           </div>
         </div>

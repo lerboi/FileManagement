@@ -27,7 +27,11 @@ Save a create client process as draft
 
 Overall:
 - Add ability to set status 
+- Need a document placeholder table in my supabase to store hundreds of placeholders and all custom placeholders. When editing a document template, in the custom Fields section, there should show the list of document placeholders.
+
+When settin gup, can choose to add that field in 
 
 
+Add a document placeholders
 
 
