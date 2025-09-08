@@ -1,0 +1,435 @@
+${appointmentDirector-address}	Appointment Director Address	
+${appointmentDirector-birthday}	Appointment Director Birthday	
+${appointmentDirector-country}	Appointment Director Country	
+${appointmentDirector-email}	Appointment Director Email	
+${appointmentDirector-gender}	Appointment Director Gender	
+${appointmentDirector-name}	Appointment Director Name	
+${appointmentDirector-nationality}	Appointment Director Nationality	
+${appointmentDirector-passport}	Appointment Director Passport	
+${appointmentDirector-phone}	Appointment Director Phone	
+${branch-address}	Branch Address	
+${branch-country}	Branch Country	
+${branch-email}	Branch Email	
+${branch-name}	Branch Name	
+${branch-phone}	Branch Phone	
+${chairmanDirector-address}	Chairman Director Address	
+${chairmanDirector-birthday}	Chairman Director Birthday	
+${chairmanDirector-country}	Chairman Director Country	
+${chairmanDirector-email}	Chairman Director Email	
+${chairmanDirector-gender}	Chairman Director Gender	
+${chairmanDirector-name}	Chairman Director Name
+${chairmanDirector-nationality}	Chairman Director Nationality	
+${chairmanDirector-passport}	Chairman Director Passport	
+${chairmanDirector-phone}	Chairman Director Phone	
+${company-business_activity1}	Company Business Activity 1	
+${company-business_activity2}	Company Business Activity 2	
+${company-country}	Company Country	
+${company-employment_pass}	Company Employment Pass	
+${company-management_service}	Company Management Service	
+${company-paid_up_capital}	Company Paid Up Capital	
+${company-postal_code}	Company Postal Code	
+${company-proposed_name}	Company Proposed Name	
+${company-reg_address}	Company Reg Address	
+${company-reg_date}	Company Reg Date	
+${company-reg_name}	Company Reg Name	
+${company-shareholders_resolution_date}	Company Shareholders Resolution Date	
+${company-special_resolution_date}	Company Special Resolution Date	
+${company-year_ended}	Company Year Ended	
+${company_owner-country}	Company Owner Country	
+${company_owner-email}	Company Owner Email	
+${company_owner-name}	Company Owner Name	
+${company_owner-phone}	Company Owner Phone	
+${job-auditor_company}	Annual General Meeting Auditor Company	
+${job-auditor_name}	Annual General Meeting Auditor Name	
+${job-company_reg_address}	New Company Reg Address	
+${job-company_strike_off_date}	Date of Strike Off	
+${job-financial_year_end}	New Financial Year End	
+${job-paid_up_capital}	New Paid Up Capital	
+${job-service}	Job Service	
+${job-year_ended}	Annual General Meeting Year Ended	
+${knowYourClient-a1}	Client acceptance form - Source and description of your wealth to start this company (eg; saving from income, inheritance and others please specificy)	
+${knowYourClient-b1}	Client acceptance form - What type of business activities the Company is to perform	
+${knowYourClient-b10}	Client acceptance form - Source and intended destination of outgoing funds from the company's bank account (Eg operational expenses, remit back to holding company or etc)	
+${knowYourClient-b2}	Client acceptance form - Source of fund to start the Company	
+${knowYourClient-b3}	Client acceptance form - How is the sales of the Company being generated?	
+${knowYourClient-b4}	Client acceptance form - What the estimated turnover (in Singapore Dollars) for the next 12 months?	
+${knowYourClient-b5}	Client acceptance form - Names of some of your supplier (if any)	
+${knowYourClient-b6}	Client acceptance form - Names of your customer (if any)	
+${knowYourClient-b7}	Client acceptance form - Background of the directors(e.g. Local or foreigner, past working experience, etc)	
+${knowYourClient-b8}	Client acceptance form - What will the company's bank account be used mostly for? (eg. investments or operational account)	
+${knowYourClient-b9}	Client acceptance form - Source of incoming funds into the bank account (Eg. operational revenue , funds from investors or holding company)	
+${knowYourClient-background_beneficial_owners}	Client acceptance form - Background of the beneficial owners	
+${knowYourClient-background_directors}	Client acceptance form - Background of the directors	
+${knowYourClient-bank_account}	Client acceptance form - What will the Singapore bank account be used mostly for? (eg. investments or operational account)	
+${knowYourClient-cd1}	Client acceptance form - Is the Beneficial Owner the same person as Section A?	
+${knowYourClient-cd2}	Client acceptance form - Are any of the persons listed above a politically exposed person, that is, a person who is or has been entrusted with any prominent public function in Singapore, a country or territory outside Singapore, or by an international org	
+${knowYourClient-cd3}	Client acceptance form - Are any of the persons listed above a politically exposed person, that is, a person who is or has been entrusted with any prominent public function in Singapore, a country or territory outside Singapore, or by an international org	
+${knowYourClient-cd4}	Client acceptance form - Are any of the persons listed above an immediate family member or a close associate of a politically exposed or a politically exposed person who has stepped down?	
+${knowYourClient-convicted}	Client acceptance form - Have you ever been criminally convicted	
+${knowYourClient-edu_name}	Client acceptance form - Highest qualification from which education institution	
+${knowYourClient-expected_turnover}	Client acceptance form - Expected turnover per year	
+${knowYourClient-experience}	Client acceptance form - Past 5 years of working experience	
+${knowYourClient-explain_business_activities}	Client acceptance form - Please explain about your business activities in detail	
+${knowYourClient-names_counterparts}	Client acceptance form - Names of some of your counterparts/ sister company	
+${knowYourClient-names_customers}	Client acceptance form - Names of some of your customers	
+${knowYourClient-names_suppliers}	Client acceptance form - Names of some of your suppliers	
+${knowYourClient-reason_choosing}	Client acceptance form - What is the reason for choosing to set up company in Singapore	
+${knowYourClient-source_beneficial_owners}	Client acceptance form - What is the source of wealth of the beneficial owners	
+${knowYourClient-source_incoming_account}	Client acceptance form - Source of incoming funds into the account	
+${knowYourClient-source_outgoing_account}	Client acceptance form - Source and intended destination of outgoing funds from the account	
+${nomineeDirector-address}	Nominee Director Address	
+${nomineeDirector-birthday}	Nominee Director Birthday	
+${nomineeDirector-country}	Nominee Director Country	
+${nomineeDirector-deposit}	Nominee Director Deposit	
+${nomineeDirector-email}	Nominee Director Email	
+${nomineeDirector-gender}	Nominee Director Gender	
+${nomineeDirector-name}	Nominee Director Name	
+${nomineeDirector-nationality}	Nominee Director Nationality	
+${nomineeDirector-passport}	Nominee Director Passport	
+${nomineeDirector-period}	Nominee Director Period	
+${nomineeDirector-phone}	Nominee Director Phone	
+${nomineeDirector-price}	Nominee Director Price	
+${resignationDirector-address}	Resignation Director Address	
+${resignationDirector-birthday}	Resignation Director Birthday	
+${resignationDirector-country}	Resignation Director Country	
+${resignationDirector-email}	Resignation Director Email	
+${resignationDirector-gender}	Resignation Director Gender	
+${resignationDirector-name}	Resignation Director Name	
+${resignationDirector-nationality}	Resignation Director Nationality	
+${resignationDirector-passport}	Resignation Director Passport	
+${resignationDirector-phone}	Resignation Director Phone	
+${secretary}	Secretary name	
+${secretary-address}	Secretary Address	
+${secretary-business_occupation}	Secretary Business Occupation	
+${secretary-country}	Secretary Country	
+${secretary-email}	Secretary Email	
+${secretary-nationality}	Secretary Nationality	
+${secretary-particular}	Secretary Particular	
+${secretary-passport}	Secretary Passport	
+${secretary-phone}	Secretary Phone	
+${stakeholder-address}	Stakeholder Address	
+${stakeholder-birthday}	Stakeholder Birthday	
+${stakeholder-country}	Stakeholder Country	
+${stakeholder-email}	Stakeholder Email	
+${stakeholder-gender}	Stakeholder Gender	
+${stakeholder-name}	Stakeholder Name	
+${stakeholder-nationality}	Stakeholder Nationality	
+${stakeholder-passport}	Stakeholder Passport	
+${stakeholder-phone}	Stakeholder Phone	
+${company-reg_no}	Company Reg No	
+${stakeholder-shares_amount}	Stakeholder Shares Amount	
+${partner-name}	Company Partner Name	
+${privateConfidential-name}	Private confidential manager name	
+${CLONE_SHAREHOLDERS}	Copy content inside shareholders count times
+Use only with closing placeholder ${/CLONE_SHAREHOLDERS}	
+${CLONE_DIRECTORS}	Copy content inside directors count times
+Use only with closing placeholder ${/CLONE_DIRECTORS}	
+${ROW_SHAREHOLDERS}	Copy table row shareholders count times
+Use inside first cell of any table row	
+${ROW_DIRECTORS}	Copy table row directors count times
+Use inside first cell of any table row	
+${_director-name}	Director name
+Use inside clone directory placeholders (CLONE_DIRECTORS or ROW_DIRECTORS)	
+${_director-passport}	Director passport
+Use inside clone directory placeholders (CLONE_DIRECTORS or ROW_DIRECTORS)	
+${_director-country-name}	Director country
+Use inside clone directory placeholders (CLONE_DIRECTORS or ROW_DIRECTORS)	
+${_director-nationality-name}	Director nationality
+Use inside clone directory placeholders (CLONE_DIRECTORS or ROW_DIRECTORS)	
+${_director-address}	Director address
+Use inside clone directory placeholders (CLONE_DIRECTORS or ROW_DIRECTORS)	
+${_director-phone}	Director phone
+Use inside clone directory placeholders (CLONE_DIRECTORS or ROW_DIRECTORS)	
+${_director-email}	Director email
+Use inside clone directory placeholders (CLONE_DIRECTORS or ROW_DIRECTORS)	
+${_director-gender}	Director gender
+Use inside clone directory placeholders (CLONE_DIRECTORS or ROW_DIRECTORS)	
+${_director-shares_amount}	Director shares amount
+Use inside clone directory placeholders (CLONE_DIRECTORS or ROW_DIRECTORS)	
+${_shareholder-name}	Shareholder name
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_shareholder-passport}	Shareholder passport
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_shareholder-country-name}	Shareholder country
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_shareholder-nationality-name}	Shareholder nationality
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_shareholder-address}	Shareholder address
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_shareholder-phone}	Shareholder phone
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_shareholder-email}	Shareholder email
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_shareholder-gender}	Shareholder gender
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_shareholder-shares_amount}	Shareholder shares amount
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${system-date}	Current date	
+${system-day}	Current day	
+${system-month}	Current month	
+${system-year}	Current year	
+${custom-company_reg_day}	Day of register company	
+${custom-company_reg_month}	Month of register company	
+${custom-company_reg_year}	Year of register company	
+${custom-all_directors_name_and_passport}	All directors name & passport	
+${num}	Row number
+Use only in row with placeholder ROW_SHAREHOLDERS or ROW_DIRECTORS	
+${riskAssessment-a1}	Risk Assessment - Formation of corporations of other legal persons	
+${riskAssessment-a2}	Risk Assessment - Providing a registered office, business address or correspondene or administrative address or other related servies	
+${riskAssessment-a3}	Risk Assessment - Acting, or arranging for another person to act as a partner of a partnership	
+${riskAssessment-a4}	Risk Assessment - Acting, or arranging for another person to act in a position similar to the above in relation to other legal persons	
+${riskAssessment-a5}	Risk Assessment - Acting, or arranging for another person to act as director or secretary of a corporation	
+${riskAssessment-a6}	Risk Assessment - Acting, or arranging for another person to act, as a shareholder o behalf of any corporation other than one whose securities are listed on a securities exchange under section 2(1) or recognized securities exchange under section 283(1) of	
+${riskAssessment-a7}	Risk Assessment - Is the Client a	
+${riskAssessment-a8}	Risk Assessment - Is the Client physically present for identification purposes when establishing the business relationship?	
+${riskAssessment-a9}	Risk Assessment - Is the Client engaing the registerd Filing Agent to perform complex or unusually large transactions, or unsual patterns of transactions that have no apparent or visible economic or lawful purpose?	
+${riskAssessment-a10}	Risk Assessment - Are any of the persons listed a politically exposed person (at present or has stepped down) or immediate family member or a close associate of a politically exposed person (at present or has stepped down)?	
+${riskAssessment-a11}	Risk Assessment - Are any of the persons identified from or in countries and territories outside Singapore known to have inadequate measures for the prevention of money laundering or the financing of terrorism?	
+${riskAssessment-a12}	Risk Assessment - Are any of the persons identified from countries of jurisdictions which the Financial Action Task Force has called for countermeasures including the application of enhanced customer due diligence measures?	
+${riskAssessment-a13}	Risk Assessment - Do any of the persons identified fall into any other categories of customers which the registered Filing Agent considers may present a high risk of money laundering or the financing of terrorism, or which the registered Filing Agent susp	
+${riskAssessment-a1_details}	Risk Assessment - A1 Details	
+${riskAssessment-a2_details}	Risk Assessment - A2 Details	
+${riskAssessment-a3_details}	Risk Assessment - A3 Details	
+${riskAssessment-a4_details}	Risk Assessment - A4 Details	
+${riskAssessment-a5_details}	Risk Assessment - A5 Details	
+${riskAssessment-a6_details}	Risk Assessment - A6 Details	
+${riskAssessment-a7_details}	Risk Assessment - Please provide supporting information below if the answer to any of the above questions is Yes.	
+${riskAssessment-risk_level}	Risk Assessment - Client Risk Rating	
+${riskAssessment-recommendation}	Risk Assessment - Recommendation for Acceptance of Client	
+${riskAssessment-approved-name}	Risk Assessment - Approval User name	
+${riskAssessment-approved-email}	Risk Assessment - Approval User email	
+${task-type}	Task type	
+${task-status}	Task status	
+${task-started_on}	Task started	
+${task-completed_on}	Task completed	
+${task-delegatedTo-name}	Task delegated user name	
+${task-delegatedTo-email}	Task delegated user email	
+${appointmentDirector-date}	Appointment Director Date of appointment	
+${resignationDirector-date}	Resignation Director Date	
+${stakeholder-certificate_no}	Stakeholder Certificate No	
+${riskAssessment-a8_details}	Risk Assessment - A8 Details	
+${_shareholder-servicesData-share_amount}	Stakeholder Increased Shares	
+${_shareholder-servicesData-share_amount_total}	Stakeholder Total of Shares	
+${stakeholder-created}	Stakeholder Created Date	
+${stakeholder-cessation}	Director Cessation (yes, no)	
+${stakeholder-cessation_date}	Director Cessation Date	
+${stakeholder-acquired-shares_amount}	Stakeholder Shares Acquired shares amount	
+${stakeholder-acquired-consideration}	Stakeholder Shares Acquired Consideration	
+${stakeholder-acquired-certificate_no}	Stakeholder Shares Acquired Certificate No	
+${stakeholder-acquired-date}	Stakeholder Shares Acquired Date	
+${_transfer-shares}	Shareholder Shares Transfer - Shares	
+${_transfer-consideration}	Shareholder Shares Transfer - Consideration	
+${_transfer-shares_amount}	Shareholder Shares Transfer - Shares amount after transfer	
+${_transfer-certificate_no}	Stakeholder Shares Transfer - Certificate No	
+${_transfer-transferFrom}	Stakeholder Shares Transfer - Transfer from (name)	
+${_transfer-transfer_from_shares_amount}	Stakeholder Shares Transfer - Transfer from (shares amount after transfer)	
+${_transfer-date}	Stakeholder Shares Transfer - Transfer from (shares amount after transfer)	
+${transfer-shares}	Shares Transfer - Shares	
+${transfer-consideration}	Shares Transfer - Consideration	
+${transfer-shares_amount}	Shares Transfer - Transfer To shares amount after transfer	
+${transfer-certificate_no}	Shares Transfer - Certificate No of transfer to	
+${transfer-from_shares_amount}	Shares Transfer - Transfer From shares amount after transfer	
+${transfer-date}	Shares Transfer - Date	
+${transfer-transferFrom-name}	Shares Transfer - Transfer From name	
+${transfer-transferFrom-email}	Shares Transfer - Transfer From email	
+${transfer-transferFrom-passport}	Shares Transfer - Transfer From passport	
+${transfer-transferFrom-country}	Shares Transfer - Transfer From country	
+${transfer-transferFrom-nationality}	Shares Transfer - Transfer From nationality	
+${transfer-transferFrom-address}	Shares Transfer - Transfer From address	
+${transfer-transferFrom-phone}	Shares Transfer - Transfer From phone	
+${transfer-transferFrom-birthday}	Shares Transfer - Transfer From birthday	
+${transfer-transferFrom-gender}	Shares Transfer - Transfer From gender	
+${transfer-transferFrom-shares_amount}	Shares Transfer - Transfer From actual shares amount	
+${transfer-transferFrom-certificate_no}	Shares Transfer - Transfer From actual certificate no	
+${transfer-transferFrom-appoint_date}	Shares Transfer - Transfer From date of appoint	
+${transfer-transferFrom-cessation}	Shares Transfer - Transfer From cessation (Yes or No)	
+${transfer-transferFrom-cessation_date}	Shares Transfer - Transfer From date of cessation	
+${transfer-transferTo-name}	Shares Transfer - Transfer To name	
+${transfer-transferTo-email}	Shares Transfer - Transfer To email	
+${transfer-transferTo-passport}	Shares Transfer - Transfer To passport	
+${transfer-transferTo-country}	Shares Transfer - Transfer To country	
+${transfer-transferTo-nationality}	Shares Transfer - Transfer To nationality	
+${transfer-transferTo-address}	Shares Transfer - Transfer To address	
+${transfer-transferTo-phone}	Shares Transfer - Transfer To phone	
+${transfer-transferTo-birthday}	Shares Transfer - Transfer To birthday	
+${transfer-transferTo-gender}	Shares Transfer - Transfer To gender	
+${transfer-transferTo-shares_amount}	Shares Transfer - Transfer To actual shares amount	
+${transfer-transferTo-certificate_no}	Shares Transfer - Transfer To actual certificate no	
+${transfer-transferTo-appoint_date}	Shares Transfer - Transfer To date of appoint	
+${transfer-transferTo-cessation}	Shares Transfer - Transfer To cessation (Yes or No)	
+${transfer-transferTo-cessation_date}	Shares Transfer - Transfer To date of cessation	
+${CLONE_SHAREHOLDER_TRANSFER}	Copy content inside shareholder transfer count times
+Use only with closing placeholder ${/CLONE_SHAREHOLDER_TRANSFER}	
+${ROW_SHAREHOLDER_TRANSFER}	Copy table row shareholder transfer count times
+Use inside first cell of any table row	
+${CLONE_JOB_TRANSFER}	Copy content inside job transfer count times
+Use only with closing placeholder ${/CLONE_JOB_TRANSFER}	
+${ROW_JOB_TRANSFER}	Copy table row job transfer count times
+Use inside first cell of any table row	
+${_transfer-from-name}	Transfer From name (use only in clone block)	
+${_transfer-from-email}	Transfer From email (use only in clone block)	
+${_transfer-from-passport}	Transfer From passport (use only in clone block)	
+${_transfer-from-country}	Transfer From country (use only in clone block)	
+${_transfer-from-nationality}	Transfer From nationality (use only in clone block)	
+${_transfer-from-address}	Transfer From address (use only in clone block)	
+${_transfer-from-phone}	Transfer From phone (use only in clone block)	
+${_transfer-from-birthday}	Transfer From birthday (use only in clone block)	
+${_transfer-from-gender}	Shares Transfer - Transfer From gender (use only in clone block)	
+${_transfer-from-shares_amount}	Transfer From actual shares amount (use only in clone block)	
+${_transfer-from-certificate_no}	Transfer From actual certificate no (use only in clone block)	
+${_transfer-from-appoint_date}	Transfer From date of appoint (use only in clone block)	
+${_transfer-from-cessation}	Transfer From cessation - Yes or No (use only in clone block)	
+${_transfer-from-cessation_date}	Transfer From date of cessation (use only in clone block)	
+${_transfer-to-name}	Transfer To name (use only in clone block)	
+${_transfer-to-email}	Transfer To email (use only in clone block)	
+${_transfer-to-passport}	Transfer To passport (use only in clone block)	
+${_transfer-to-country}	Transfer To country (use only in clone block)	
+${_transfer-to-nationality}	Transfer To nationality (use only in clone block)	
+${_transfer-to-address}	Transfer To address (use only in clone block)	
+${_transfer-to-phone}	Transfer To phone (use only in clone block)	
+${_transfer-to-birthday}	Transfer To birthday (use only in clone block)	
+${_transfer-to-gender}	Shares Transfer - Transfer To gender (use only in clone block)	
+${_transfer-to-shares_amount}	Transfer To actual shares amount (use only in clone block)	
+${_transfer-to-certificate_no}	Transfer To actual certificate no (use only in clone block)	
+${_transfer-to-appoint_date}	Transfer To date of appoint (use only in clone block)	
+${_transfer-to-cessation}	Transfer To cessation - Yes or No (use only in clone block)	
+${_transfer-to-cessation_date}	Transfer To date of cessation (use only in clone block)	
+${stakeholder-appointment}	Stakeholder date of appointment	
+${_shareholder-appointment}	Shareholder date of appointment
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_director-appointment}	Director date of appointment
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_shareholder-created}	Shareholder date of created
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_director-created}	Director date of created
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${_transfer-activeAcquired}	Transfer active Acquired (use only in clone block)	
+${CLONE_FUTURE_STAKEHOLDERS}	Copy content inside future stakeholder count times
+Use only with closing placeholder ${/CLONE_FUTURE_STAKEHOLDERS}	
+${ROW_FUTURE_STAKEHOLDERS}	Copy table row future stakeholder count times
+Use inside first cell of any table row	
+${_future-name}	Future Shareholder name
+Use inside clone future shareholder placeholders (CLONE_FUTURE_STAKEHOLDERS or ROW_FUTURE_STAKEHOLDERS)	
+${_future-passport}	Future Shareholder passport
+Use inside clone future shareholder placeholders (CLONE_FUTURE_STAKEHOLDERS or ROW_FUTURE_STAKEHOLDERS)	
+${_future-country}	Future Shareholder country
+Use inside clone future shareholder placeholders (CLONE_FUTURE_STAKEHOLDERS or ROW_FUTURE_STAKEHOLDERS)	
+${_future-nationality}	Future Shareholder nationality
+Use inside clone future shareholder placeholders (CLONE_FUTURE_STAKEHOLDERS or ROW_FUTURE_STAKEHOLDERS)	
+${_future-address}	Future Shareholder address
+Use inside clone future shareholder placeholders (CLONE_FUTURE_STAKEHOLDERS or ROW_FUTURE_STAKEHOLDERS)	
+${_future-phone}	Future Shareholder phone
+Use inside clone future shareholder placeholders (CLONE_FUTURE_STAKEHOLDERS or ROW_FUTURE_STAKEHOLDERS)	
+${_future-email}	Future Shareholder email
+Use inside clone future shareholder placeholders (CLONE_FUTURE_STAKEHOLDERS or ROW_FUTURE_STAKEHOLDERS)	
+${_future-gender}	Future Shareholder gender
+Use inside clone future shareholder placeholders (CLONE_FUTURE_STAKEHOLDERS or ROW_FUTURE_STAKEHOLDERS)	
+${future-name}	Future Shareholder name	
+${future-passport}	Future Shareholder passport	
+${future-country}	Future Shareholder country	
+${future-nationality}	Future Shareholder nationality	
+${future-address}	Future Shareholder address	
+${future-phone}	Future Shareholder phone	
+${future-email}	Future Shareholder email	
+${future-gender}	Future Shareholder gender	
+${_future-birthday}	Future Shareholder birthday
+Use inside clone future shareholder placeholders (CLONE_FUTURE_STAKEHOLDERS or ROW_FUTURE_STAKEHOLDERS)	
+${future-birthday}	Future Shareholder birthday	
+${incomingChairman-name}	Incoming Chairman name	
+${incomingChairman-passport}	Incoming Chairman passport	
+${incomingChairman-country}	Incoming Chairman country	
+${incomingChairman-nationality}	Incoming Chairman nationality	
+${incomingChairman-address}	Incoming Chairman address	
+${incomingChairman-phone}	Incoming Chairman phone	
+${incomingChairman-email}	Incoming Chairman email	
+${incomingChairman-gender}	Incoming Chairman gender	
+${incomingChairman-birthday}	Incoming Chairman birthday	
+${secretary-appoint_date}	Secretary Appoint Date	
+${secretary-ceased_date}	Secretary Ceased Date	
+${job-company_active}	Annual General Meeting Company Active/Inactive	
+${job-company_audited}	Annual General Meeting Company Audited/Unaudited	
+${job-company_active_dormant}	Annual General Meeting Company Active/Dormant	
+${job-before_paid_up_capital}	Paid up capital before increase	
+${beneficiary-ben_arrangement}	Client acceptance form - Beneficiary Details	
+${shareholder-cessation_date}	Shareholder Cessation Date	
+${beneficiary-name}	Client acceptance form - Beneficiary Name	
+${beneficiary-passport}	Client acceptance form - Beneficiary Passport	
+${beneficiary-birthday}	Client acceptance form - Beneficiary Birthday	
+${beneficiary-nationality}	Client acceptance form - Beneficiary Nationality	
+${beneficiary-address}	Client acceptance form - Beneficiary Address	
+${beneficiary-gender}	Client acceptance form - Beneficiary Gender	
+${beneficiary-phone}	Client acceptance form - Beneficiary Phone	
+${future_beneficiary-ben_arrangement}	Future Client acceptance form - Beneficiary Details	
+${future_beneficiary-name}	Future Client acceptance form - Beneficiary Name	
+${future_beneficiary-passport}	Future Client acceptance form - Beneficiary Passport	
+${future_beneficiary-birthday}	Future Client acceptance form - Beneficiary Birthday	
+${future_beneficiary-nationality}	Future Client acceptance form - Beneficiary Nationality	
+${future_beneficiary-address}	Future Client acceptance form - Beneficiary Address	
+${future_beneficiary-gender}	Future Client acceptance form - Beneficiary Gender	
+${future_beneficiary-phone}	Future Client acceptance form - Beneficiary Phone	
+${_transfer-acquiredNote}	Shareholder Shares Transfer - Acquired Note	
+${static-na}	Static text - NA	
+${ROW_ACQUIRED_TRANSFER}	Copy table row acquired transfer count times
+Use inside first cell of any table row	
+${ROW_SHAREHOLDER_FROM_TRANSFER}	Copy table row shareholder from transfer count times
+Use inside first cell of any table row	
+${_shareholder-servicesData-before_share_amount}	Stakeholder shares before increase
+Use inside clone shareholder placeholders (CLONE_SHAREHOLDERS or ROW_SHAREHOLDERS)	
+${riskAssessment-b1_1_y}	b1_1 show + if value is Yes	
+${riskAssessment-b1_1_n}	b1_1 show + if value is No	
+${riskAssessment-b1_2_y}	b1_2 show + if value is Yes	
+${riskAssessment-b1_2_n}	b1_2 show + if value is No	
+${riskAssessment-b1__1_y}	b1__1 show + if value is Yes	
+${riskAssessment-b1__1_n}	b1__1 show + if value is No	
+${riskAssessment-b1__2_y}	b1__2 show + if value is Yes	
+${riskAssessment-b1__2_n}	b1__2 show + if value is No	
+${riskAssessment-b1__3_y}	b1__3 show + if value is Yes	
+${riskAssessment-b1__3_n}	b1__3 show + if value is No	
+${riskAssessment-b1__4_y}	b1__4 show + if value is Yes	
+${riskAssessment-b1__4_n}	b1__4 show + if value is No	
+${riskAssessment-b1__5_y}	b1__5 show + if value is Yes	
+${riskAssessment-b1__5_n}	b1__5 show + if value is No	
+${riskAssessment-b1__6_y}	b1__6 show + if value is Yes	
+${riskAssessment-b1__6_n}	b1__6 show + if value is No	
+${riskAssessment-b1__7_y}	b1__7 show + if value is Yes	
+${riskAssessment-b1__7_n}	b1__7 show + if value is No	
+${riskAssessment-b1__8_y}	b1__8 show + if value is Yes	
+${riskAssessment-b1__8_n}	b1__8 show + if value is No	
+${riskAssessment-b1__9_y}	b1__9 show + if value is Yes	
+${riskAssessment-b1__9_n}	b1__9 show + if value is No	
+${riskAssessment-b1__10_y}	b1__10 show + if value is Yes	
+${riskAssessment-b1__10_n}	b1__10 show + if value is No	
+${riskAssessment-b1__11_y}	b1__11 show + if value is Yes	
+${riskAssessment-b1__11_n}	b1__11 show + if value is No	
+${riskAssessment-b2_1_y}	b2_1 show + if value is Yes	
+${riskAssessment-b2_1_n}	b2_1 show + if value is No	
+${riskAssessment-b2_2_y}	b2_2 show + if value is Yes	
+${riskAssessment-b2_2_n}	b2_2 show + if value is No	
+${riskAssessment-b2_3_y}	b2_3 show + if value is Yes	
+${riskAssessment-b2_3_n}	b2_3 show + if value is No	
+${riskAssessment-b2_4_y}	b2_4 show + if value is Yes	
+${riskAssessment-b2_4_n}	b2_4 show + if value is No	
+${riskAssessment-b3_1_y}	b3_1 show + if value is Yes	
+${riskAssessment-b3_1_n}	b3_1 show + if value is No	
+${riskAssessment-b3_2_y}	b3_2 show + if value is Yes	
+${riskAssessment-b3_2_n}	b3_2 show + if value is No	
+${riskAssessment-b3_3_y}	b3_3 show + if value is Yes	
+${riskAssessment-b3_3_n}	b3_3 show + if value is No	
+${riskAssessment-b3_4_y}	b3_4 show + if value is Yes	
+${riskAssessment-b3_4_n}	b3_4 show + if value is No	
+${riskAssessment-b3_5_y}	b3_5 show + if value is Yes	
+${riskAssessment-b3_5_n}	b3_5 show + if value is No	
+${riskAssessment-b3_6_y}	b3_6 show + if value is Yes	
+${riskAssessment-b3_6_n}	b3_6 show + if value is No	
+${riskAssessment-b3_7_y}	b3_7 show + if value is Yes	
+${riskAssessment-b3_7_n}	b3_7 show + if value is No	
+${riskAssessment-b3_8_y}	b3_8 show + if value is Yes	
+${riskAssessment-b3_8_n}	b3_8 show + if value is No	
+${clientFutureStakeholder-name}	Name of Future Stakeholder who created the Company	
+${clientFutureStakeholder-passport}	Passport of Future Stakeholder who created the Company	
+${knowYourClient-b11}	Client acceptance form - Which countries does your business primarily conduct transactions with?	
+${knowYourClient-b12}	What is the reason for choosing to set up company in $country_name.	
+${knowYourClient-b13}	Client acceptance form - If you have more than one company, could you provide the names of them?	
+${knowYourClient-b14}	Client acceptance form - Is yours business cash-intensive or does your business require significant cash investments? Please describe the cash flow nature of your business.	
+${knowYourClient-b15}	Client acceptance form - Does the Director or Owner frequently make unaccounted cash transactions to similar recipient(s)? or Does the business frequently engage in unrecorded cash transactions with the same recipient(s)?	
+${knowYourClient-b16}	Client acceptance form - What are the industries or sectors that typically involve revenue generation through sales of tangible products and services?	

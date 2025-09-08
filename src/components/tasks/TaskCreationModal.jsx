@@ -7,7 +7,7 @@ import CustomFieldsStep from './CustomFieldsStep'
 import ClientSelectionStep from './ClientSelectionStep'
 import TaskPreviewStep from './TaskPreviewStep'
 
-export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, editingDraft = null }) {
+export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, onDraftCreated, editingDraft = null }) {
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -15,6 +15,7 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
   const [existingDrafts, setExistingDrafts] = useState([])
   const [showDraftSelector, setShowDraftSelector] = useState(false)
   const [currentDraftId, setCurrentDraftId] = useState(null)
+  const [isLoadingDraft, setIsLoadingDraft] = useState(false)
   
   // Form data
   const [formData, setFormData] = useState({
@@ -65,29 +66,52 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
 
   const loadExistingDraft = async (draft) => {
     try {
+      setIsLoadingDraft(true) // Start loading
       setCurrentDraftId(draft.id)
       setShowDraftSelector(false)
       
+      // Store the draft's custom field values to preserve them
+      const draftCustomFieldValues = draft.custom_field_values || {}
+      
       // Load draft data
-      setFormData({
+      const draftFormData = {
         service_id: draft.service_id,
         client_id: draft.client_id,
-        custom_field_values: draft.custom_field_values || {},
+        custom_field_values: draftCustomFieldValues,
         notes: draft.notes || '',
         priority: draft.priority || 'normal',
         assigned_to: draft.assigned_to || null
-      })
+      }
+      
+      setFormData(draftFormData)
 
       // Fetch initial data first
       await fetchInitialData()
       
-      // Wait for services and clients to load, then set selected items
+      // Wait a moment for state to update, then set selected items
       setTimeout(async () => {
         // Find and set the selected service and client from the draft
         if (availableServices.length > 0 && draft.service_id) {
           const service = availableServices.find(s => s.id === draft.service_id)
           if (service) {
-            await handleServiceSelection(service)
+            setSelectedService(service)
+            // Update formData with service_id while preserving custom field values
+            setFormData(prev => ({
+              ...prev,
+              service_id: service.id,
+              custom_field_values: draftCustomFieldValues // Explicitly preserve
+            }))
+            
+            // Load custom fields for this service
+            try {
+              const response = await fetch(`/api/services/${service.id}/custom-fields`)
+              if (response.ok) {
+                const data = await response.json()
+                setServiceCustomFields(data.customFields || [])
+              }
+            } catch (error) {
+              console.error('Error fetching service custom fields:', error)
+            }
           }
         }
         
@@ -95,16 +119,24 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
           const client = availableClients.find(c => c.id === draft.client_id)
           if (client) {
             setSelectedClient(client)
+            // Update formData with client_id while preserving custom field values
+            setFormData(prev => ({
+              ...prev,
+              client_id: client.id,
+              custom_field_values: draftCustomFieldValues // Explicitly preserve
+            }))
           }
         }
 
         // Always start at step 1 when continuing to edit
         setCurrentStep(1)
-      }, 500)
+        setIsLoadingDraft(false) // End loading
+      }, 300)
       
     } catch (error) {
       console.error('Error loading existing draft:', error)
       setError('Failed to load draft')
+      setIsLoadingDraft(false) // End loading on error
       startNewTask()
     }
   }
@@ -115,25 +147,8 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
       return
     }
 
-    try {
-      const response = await fetch('/api/tasks/draft')
-      if (response.ok) {
-        const data = await response.json()
-        const drafts = data.drafts || []
-        setExistingDrafts(drafts)
-        
-        if (drafts.length > 0) {
-          setShowDraftSelector(true)
-        } else {
-          startNewTask()
-        }
-      } else {
-        startNewTask()
-      }
-    } catch (error) {
-      console.error('Error checking drafts:', error)
-      startNewTask()
-    }
+    // Always start a new task - skip draft checking
+    startNewTask()
   }
 
   const startNewTask = async () => {
@@ -146,51 +161,89 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
       setCurrentDraftId(draft.id)
       setShowDraftSelector(false)
       
+      // Store the draft's custom field values to preserve them
+      const draftCustomFieldValues = draft.custom_field_values || {}
+      
       // Load draft data
-      setFormData({
+      const draftFormData = {
         service_id: draft.service_id,
         client_id: draft.client_id,
-        custom_field_values: draft.custom_field_values || {},
+        custom_field_values: draftCustomFieldValues,
         notes: draft.notes || '',
         priority: draft.priority || 'normal',
         assigned_to: draft.assigned_to || null
-      })
+      }
+      
+      setFormData(draftFormData)
 
-      // Set selected items
+      // Fetch initial data first
       await fetchInitialData()
       
-      // Find and set selected service and client
-      const service = availableServices.find(s => s.id === draft.service_id)
-      const client = availableClients.find(c => c.id === draft.client_id)
-      
-      if (service) {
-        await handleServiceSelection(service)
-      }
-      if (client) {
-        setSelectedClient(client)
-      }
-
-      // Determine which step to show based on completed data
-      if (!draft.service_id) {
-        setCurrentStep(1) // Service selection
-      } else if (!draft.client_id) {
-        setCurrentStep(2) // Client selection
-      } else if (serviceCustomFields.length > 0) {
-        // Check if custom fields are completed
-        const requiredFields = serviceCustomFields.filter(field => field.required)
-        const missingFields = requiredFields.filter(field => {
-          const value = draft.custom_field_values[field.name] || draft.custom_field_values[field.label]
-          return !value || (typeof value === 'string' && !value.trim())
-        })
+      // Wait a moment for state to update, then set selected items
+      setTimeout(async () => {
+        let loadedServiceCustomFields = []
         
-        if (missingFields.length > 0) {
-          setCurrentStep(3) // Requirements
-        } else {
-          setCurrentStep(4) // Review
+        // Find and set selected service and client
+        if (availableServices.length > 0 && draft.service_id) {
+          const service = availableServices.find(s => s.id === draft.service_id)
+          if (service) {
+            setSelectedService(service)
+            // Update formData with service_id while preserving custom field values
+            setFormData(prev => ({
+              ...prev,
+              service_id: service.id,
+              custom_field_values: draftCustomFieldValues // Explicitly preserve
+            }))
+            
+            // Load custom fields for this service
+            try {
+              const response = await fetch(`/api/services/${service.id}/custom-fields`)
+              if (response.ok) {
+                const data = await response.json()
+                loadedServiceCustomFields = data.customFields || []
+                setServiceCustomFields(loadedServiceCustomFields)
+              }
+            } catch (error) {
+              console.error('Error fetching service custom fields:', error)
+            }
+          }
         }
-      } else {
-        setCurrentStep(4) // Review if no custom fields
-      }
+        
+        if (availableClients.length > 0 && draft.client_id) {
+          const client = availableClients.find(c => c.id === draft.client_id)
+          if (client) {
+            setSelectedClient(client)
+            // Update formData with client_id while preserving custom field values
+            setFormData(prev => ({
+              ...prev,
+              client_id: client.id,
+              custom_field_values: draftCustomFieldValues // Explicitly preserve
+            }))
+          }
+        }
+
+        // Determine which step to show based on completed data
+        if (!draft.service_id) {
+          setCurrentStep(1) // Service selection
+        } else if (!draft.client_id) {
+          setCurrentStep(2) // Client selection
+        } else if (loadedServiceCustomFields.length > 0) {
+          // Check if custom fields are completed
+          const requiredFields = loadedServiceCustomFields.filter(field => field.required)
+          const missingFields = requiredFields.filter(field => {
+            const value = draftCustomFieldValues[field.name] || draftCustomFieldValues[field.label]
+            return !value || (typeof value === 'string' && !value.trim())
+          })
+          
+          if (missingFields.length > 0) {
+            setCurrentStep(3) // Requirements
+          } else {
+            setCurrentStep(4) // Review
+          }
+        } else {
+          setCurrentStep(4) // Review if no custom fields
+        }
+      }, 300)
       
     } catch (error) {
       console.error('Error resuming draft:', error)
@@ -225,7 +278,7 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
     setFormData(prev => ({ 
       ...prev, 
       service_id: service.id 
-      // Don't reset custom_field_values here - preserve existing data
+      // Preserve existing custom_field_values - don't reset them
     }))
     setError('')
 
@@ -246,19 +299,6 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
     const updatedFormData = { ...formData, custom_field_values: customFieldValues }
     setFormData(updatedFormData)
     setError('')
-
-    // Auto-save custom fields if draft exists
-    if (currentDraftId) {
-      try {
-        await fetch(`/api/tasks/${currentDraftId}/draft`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedFormData)
-        })
-      } catch (error) {
-        console.error('Error auto-saving custom fields:', error)
-      }
-    }
   }
 
   const handleClientSelection = async (client) => {
@@ -522,6 +562,11 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         })
+
+        // Notify parent that a draft was created
+        if (onDraftCreated) {
+          onDraftCreated(result.task)
+        }
       }
     } catch (error) {
       console.error('Error creating initial draft:', error)
@@ -619,39 +664,50 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          {currentStep === 1 && (
-            <ServiceSelectionStep
-              services={availableServices}
-              selectedService={selectedService}
-              onServiceSelect={handleServiceSelection}
-            />
-          )}
+          {isLoadingDraft ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading draft...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {currentStep === 1 && (
+                <ServiceSelectionStep
+                  services={availableServices}
+                  selectedService={selectedService}
+                  onServiceSelect={handleServiceSelection}
+                />
+              )}
 
-          {currentStep === 2 && (
-            <ClientSelectionStep
-              clients={availableClients}
-              selectedClient={selectedClient}
-              onClientSelect={handleClientSelection}
-            />
-          )}
+              {currentStep === 2 && (
+                <ClientSelectionStep
+                  clients={availableClients}
+                  selectedClient={selectedClient}
+                  onClientSelect={handleClientSelection}
+                />
+              )}
 
-          {currentStep === 3 && (
-            <CustomFieldsStep
-              customFields={serviceCustomFields}
-              values={formData.custom_field_values}
-              onValuesChange={handleCustomFieldsUpdate}
-              selectedService={selectedService}
-            />
-          )}
+              {currentStep === 3 && (
+                <CustomFieldsStep
+                  customFields={serviceCustomFields}
+                  values={formData.custom_field_values}
+                  onValuesChange={handleCustomFieldsUpdate}
+                  selectedService={selectedService}
+                />
+              )}
 
-          {currentStep === 4 && (
-            <TaskPreviewStep
-              formData={formData}
-              selectedService={selectedService}
-              selectedClient={selectedClient}
-              customFields={serviceCustomFields}
-              onFormDataUpdate={handleFormDataUpdate}
-            />
+              {currentStep === 4 && (
+                <TaskPreviewStep
+                  formData={formData}
+                  selectedService={selectedService}
+                  selectedClient={selectedClient}
+                  customFields={serviceCustomFields}
+                  onFormDataUpdate={handleFormDataUpdate}
+                />
+              )}
+            </>
           )}
         </div>
 
@@ -725,70 +781,6 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, edit
                   {loading ? 'Creating Task...' : 'Create Task'}
                 </button>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* Draft Selector Content */}
-        {showDraftSelector && (
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="text-center mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Resume or Start New?</h3>
-              <p className="text-gray-600">
-                You have {existingDrafts.length} draft task{existingDrafts.length !== 1 ? 's' : ''} in progress. 
-                Would you like to resume one or start a new task?
-              </p>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              {existingDrafts.map((draft) => (
-                <div
-                  key={draft.id}
-                  onClick={() => resumeDraft(draft)}
-                  className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <h4 className="text-sm font-medium text-gray-900">
-                          {draft.service_name}
-                        </h4>
-                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-                          Draft
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        Client: {draft.client_name}
-                      </p>
-                      <div className="flex items-center mt-2 text-xs text-gray-500 space-x-4">
-                        <span>
-                          Created: {new Date(draft.created_at).toLocaleDateString()}
-                        </span>
-                        <span>
-                          Updated: {new Date(draft.updated_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-blue-600">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-center">
-              <button
-                onClick={startNewTask}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Start New Task Instead
-              </button>
             </div>
           </div>
         )}

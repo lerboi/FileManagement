@@ -237,9 +237,34 @@ export default function TasksContent() {
     setCurrentPage(1)
   }
 
-  const handleEditDraft = (draftTask) => {
-    setEditingDraft(draftTask)
-    setShowCreateModal(true)
+  const handleEditDraft = async (draftTask) => {
+    try {
+      setLoading(true) // Add loading state
+      
+      // Fetch fresh draft data from the API
+      const response = await fetch(`/api/tasks/${draftTask.id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch latest draft data')
+      }
+      
+      const data = await response.json()
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch draft data')
+      }
+      
+      // Pass the fresh draft data to the modal
+      setEditingDraft(data.task)
+      setShowCreateModal(true)
+    } catch (error) {
+      console.error('Error fetching fresh draft data:', error)
+      // Fallback to using the existing draft data if API call fails
+      setEditingDraft(draftTask)
+      setShowCreateModal(true)
+      // Optionally show a warning to the user
+      showWarningMessage('Could not load latest changes. Using cached data.')
+    } finally {
+      setLoading(false) // Remove loading state
+    }
   }
 
   const handleViewTask = (task) => {
@@ -247,6 +272,24 @@ export default function TasksContent() {
     if (!task.is_draft) {
       setSelectedTask(task)
       setShowDetailModal(true)
+    }
+  }
+
+  const handleDraftCreated = (newDraft) => {
+    // Add the new draft to the beginning of the tasks list if it matches current filters
+    const shouldShowDraft = statusFilters.in_progress && !showCompletedTasks
+    
+    if (shouldShowDraft) {
+      setTasks(prev => [newDraft, ...prev])
+      
+      // Update pagination count if we have pagination data
+      if (pagination) {
+        setPagination(prev => ({
+          ...prev,
+          total: prev.total + 1,
+          totalPages: Math.ceil((prev.total + 1) / limit)
+        }))
+      }
     }
   }
 
@@ -606,6 +649,7 @@ export default function TasksContent() {
           setEditingDraft(null) // Clear editing draft when modal closes
         }}
         onTaskCreated={handleTaskCreated}
+        onDraftCreated={handleDraftCreated}
         editingDraft={editingDraft}
       />
 
