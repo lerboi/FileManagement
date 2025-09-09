@@ -1,5 +1,7 @@
 Can you identify the problem? Before writing any code, tell me the issue and what you plan to do to fix it. Let me know if you need any othe files as well.
 
+Before writing any code, let me know if you fully understand the process and what you plan to implement. Let me know if you need any othe files as well.
+
 Do not give me the full code with the edits, only the section/function of code with the changes made. For example if a function was changed, return me the full function, or if a client side component was changed, return me the div for that component. Let me know what files to make the changes in as well.
 
 

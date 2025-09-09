@@ -1,7 +1,6 @@
 // src/app/clients/page.js
 'use client'
 import { useState, useEffect } from 'react'
-import ClientDetailsModal from '@/components/crm/ClientDetailsModal'
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([])
@@ -11,11 +10,6 @@ export default function ClientsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalClients, setTotalClients] = useState(0)
-  
-  // Modal states
-  const [modalOpen, setModalOpen] = useState(false)
-  const [selectedClientId, setSelectedClientId] = useState(null)
-  const [modalMode, setModalMode] = useState('view') // 'view', 'edit', 'create'
 
   const limit = 10 // Clients per page
 
@@ -57,22 +51,11 @@ export default function ClientsPage() {
   }
 
   const handleViewClient = (clientId) => {
-    setSelectedClientId(clientId)
-    setModalMode('view')
-    setModalOpen(true)
+    window.location.href = `/clients/${clientId}`
   }
 
   const handleCreateClient = () => {
-    setSelectedClientId(null)
-    setModalMode('create')
-    setModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    setModalOpen(false)
-    setSelectedClientId(null)
-    // Refresh the list when modal closes
-    fetchClients()
+    window.location.href = `/clients/new`
   }
 
   const formatDate = (dateString) => {
@@ -287,14 +270,6 @@ export default function ClientsPage() {
           </div>
         </div>
       </div>
-
-      {/* Client Details Modal */}
-      <ClientDetailsModal
-        isOpen={modalOpen}
-        onClose={handleCloseModal}
-        clientId={selectedClientId}
-        mode={modalMode}
-      />
     </div>
   )
 }

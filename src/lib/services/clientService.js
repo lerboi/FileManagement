@@ -216,4 +216,30 @@ export class ClientService {
       throw error
     }
   }
+
+  // Update client with additional documents (used by ClientDocumentService)
+  static async updateClientDocuments(clientId, additionalDocuments) {
+    try {
+      const supabase = await createServerSupabase()
+
+      const { data: updatedClient, error } = await supabase
+        .from('clients')
+        .update({
+          additional_documents: additionalDocuments,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', clientId)
+        .select()
+        .single()
+
+      if (error) {
+        throw new Error(`Failed to update client documents: ${error.message}`)
+      }
+
+      return updatedClient
+    } catch (error) {
+      console.error('Error updating client documents:', error)
+      throw error
+    }
+  }
 }
