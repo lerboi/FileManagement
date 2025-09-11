@@ -1,6 +1,7 @@
 // src/app/api/documents/generate/route.js
 import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/session'
+import { DocxtemplaterService } from '@/lib/services/docxtemplaterService'
 import { createServerSupabase } from '@/lib/supabase'
 
 export async function POST(request) {
@@ -13,101 +14,36 @@ export async function POST(request) {
     console.log('Document generation request:', { templateId, clientId, customFieldValues })
 
     if (!templateId || !clientId) {
-      return NextResponse.json(
-        { error: 'Template ID and Client ID are required' },
+      return NextResponse.json({ error: 'Template ID and Client ID are required' },
         { status: 400 }
       )
     }
 
-    const supabase = await createServerSupabase()
+    // Generate document using Docxtemplater
+    const result = await DocxtemplaterService.generateDocument(
+      templateId, 
+      clientId, 
+      customFieldValues
+    )
 
-    // Fetch template with both HTML versions
-    console.log('Fetching template with dual HTML content...')
-    const { data: template, error: templateError } = await supabase
-      .from('document_templates')
-      .select('*')
-      .eq('id', templateId)
-      .single()
-
-    if (templateError) {
-      console.error('Template fetch error:', templateError)
-      throw new Error(`Failed to fetch template: ${templateError.message}`)
-    }
-
-    if (template.status !== 'active') {
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'Template must be active to generate documents' },
-        { status: 400 }
+        { error: result.error },
+        { status: 500 }
       )
     }
 
-    // Fetch client
-    console.log('Fetching client...')
-    const { data: client, error: clientError } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', clientId)
-      .single()
+    console.log('Document generated successfully:', result.document.id)
 
-    if (clientError) {
-      console.error('Client fetch error:', clientError)
-      throw new Error(`Failed to fetch client: ${clientError.message}`)
-    }
-
-    // Generate clean document for Word conversion
-    console.log('Generating clean document for Word conversion...')
-    const cleanGeneratedHtml = generateDocumentFromTemplate(
-      template.html_content, // Use clean HTML
-      client, 
-      customFieldValues,
-      template.custom_fields || []
-    )
-
-    // Generate enhanced document for web preview
-    console.log('Generating enhanced document for web preview...')
-    const enhancedSourceHtml = template.enhanced_html_content || template.html_content
-    const enhancedGeneratedHtml = generateDocumentFromTemplate(
-      enhancedSourceHtml,
-      client, 
-      customFieldValues,
-      template.custom_fields || []
-    )
-
-    // Create document record with both versions
-    const documentData = {
-      template_id: templateId,
-      client_id: clientId,
-      generated_content: cleanGeneratedHtml, // Clean for Word
-      enhanced_generated_content: enhancedGeneratedHtml, // Enhanced for web
-      original_template_name: template.name,
-      client_name: `${client.first_name} ${client.last_name}`,
-      status: 'generated',
-      created_at: new Date().toISOString(),
-      custom_field_values: customFieldValues
-    }
-
-    console.log('Saving document with dual HTML versions...', {
-      cleanLength: cleanGeneratedHtml.length,
-      enhancedLength: enhancedGeneratedHtml.length
-    })
-
-    const { data: savedDocument, error: saveError } = await supabase
-      .from('generated_documents')
-      .insert([documentData])
-      .select()
-      .single()
-
-    if (saveError) {
-      console.error('Document save error:', saveError)
-      throw new Error(`Failed to save document: ${saveError.message}`)
-    }
-
-    console.log('Document generated successfully with dual versions:', savedDocument.id)
-
-    return NextResponse.json({
-      success: true,
-      document: savedDocument,
-      generatedHtml: enhancedGeneratedHtml // Return enhanced for immediate web display
+    // Return the generated document buffer for download
+    return new NextResponse(result.buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': result.mimeType,
+        'Content-Disposition': `attachment; filename="${result.fileName}"`,
+        'Content-Length': result.buffer.length.toString(),
+        'X-Document-ID': result.document.id // Include document ID in header
+      }
     })
 
   } catch (error) {

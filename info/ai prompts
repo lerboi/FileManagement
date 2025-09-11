@@ -4,28 +4,81 @@ Before writing any code, let me know if you fully understand the process and wha
 Do not give me the full code with the edits, only the section/function of code with the changes made. For example if a function was changed, return me the full function, or if a client side component was changed, return me the div for that component. If its a new file, give me the full code. Let me know what files to make the changes in as well.
 
 
-Phase 1: Database & API Foundation
-Phase 2: UI Components
-Phase 3: Main Client Detail Page
-Phase 4: Navigation Updates
-Phase 5: Document Management
-Phase 6: Testing & Polish
 
+# Template Feature Changes Summary
 
-Owner	Name
-Partner
-Company Name
-Reg Company Name
-Reg No
-Country
-Address
-Postal Code
-Phone
-Email
-Created By
-Created On
+## NEW FILES CREATED
+src/lib/services/docxParsingService.js
+src/lib/services/docxtemplaterService.js
+src/components/templates/NewTemplateUpload.jsx
+src/components/templates/PlaceholderLibrary.jsx
+src/components/templates/PlaceholderMapper.jsx
+src/components/templates/SimpleTemplateEditor.jsx
+src/app/api/templates/[id]/download/route.js
 
-Email
-Owner Name
-Country
-Phone Number
+## FILES DELETED
+src/components/templates/TemplateEditor.jsx
+src/components/templates/TemplateEditorMainContent.jsx
+src/components/templates/DynamicFieldSelector.jsx
+src/components/templates/FieldTypeSelector.jsx
+src/components/templates/PlaceholderCreator.jsx
+src/components/templates/PlaceholdersViewModal.jsx
+src/lib/services/documentProcessingService.js
+
+## FILES MODIFIED
+src/app/api/templates/upload/route.js
+src/app/api/documents/generate/route.js
+src/app/api/templates/[id]/route.js
+src/app/api/templates/route.js
+src/app/templates/page.js
+src/components/templates/TemplateUpload.jsx
+src/components/templates/TemplateEditorModal.jsx
+src/components/templates/TemplateUploadModal.jsx
+
+## DATABASE CHANGES
+ALTER TABLE document_templates ADD COLUMN docx_file_path TEXT;
+ALTER TABLE document_templates ADD COLUMN detected_placeholders JSONB;
+CREATE STORAGE BUCKET: document-templates (private)
+
+## DEPENDENCIES ADDED
+jszip: ^3.10.1
+docxtemplater: ^3.42.0
+pizzip: ^3.1.6
+
+## TEMPLATE OBJECT CHANGES
+REMOVED: html_content, enhanced_html_content, field_mappings
+ADDED: docx_file_path, detected_placeholders, original_filename
+
+## PLACEHOLDER FORMAT CHANGED
+OLD: {{field_name}}
+NEW: {field_name}
+
+## DOCUMENT GENERATION CHANGED
+OLD: HTML processing with template replacement
+NEW: Docxtemplater service with DOCX buffer output
+
+## API RESPONSE CHANGES
+Upload: Now returns validation results and storage info
+Generate: Returns DOCX buffer instead of JSON
+
+## WORKFLOW CHANGES
+OLD: DOCX → HTML → Edit HTML → Generate DOCX (formatting lost)
+NEW: DOCX → Validate placeholders → Store original → Generate with Docxtemplater (formatting preserved)
+
+## KEY SERVICE METHODS
+DocxParsingService.extractPlaceholders()
+DocxParsingService.validatePlaceholders()
+DocxtemplaterService.generateDocument()
+
+## COMPONENT REPLACEMENTS
+TemplateEditor → SimpleTemplateEditor
+PlaceholdersViewModal → PlaceholderLibrary
+Complex HTML editing → Simple metadata editing
+
+## FOR OTHER FEATURES TO UPDATE
+Replace template.html_content with template.docx_file_path
+Replace template.field_mappings with template.detected_placeholders
+Use DocxtemplaterService for document generation
+Use DocxParsingService for template validation
+Update placeholder format from {{field}} to {field}
+Update template editing to use SimpleTemplateEditor
