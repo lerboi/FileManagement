@@ -80,7 +80,7 @@ export async function GET(request, { params }) {
   }
 }
 
-// POST - Download document as Word file using html-to-docx
+// POST - Download document as Word file using aggressive HTML cleaning
 export async function POST(request, { params }) {
   try {
     // Check authentication
@@ -113,7 +113,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
 
-    // Get the CLEAN HTML content from storage (not enhanced)
+    // Get the HTML content from storage (currently enhanced HTML)
     const { data: fileData, error: downloadError } = await supabase.storage
       .from('task-documents')
       .download(document.storagePath)
@@ -122,69 +122,189 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Failed to load document content' }, { status: 500 })
     }
 
-    // Convert blob to text - this should be CLEAN HTML
-    const cleanHtmlContent = await fileData.text()
+    // Convert blob to text
+    const htmlContent = await fileData.text()
 
     try {
-      // Import html-to-docx using dynamic import
-      const HTMLtoDOCX = (await import('html-to-docx')).default
+      // AGGRESSIVELY clean the HTML for Word conversion
+      let cleanHtml = htmlContent
 
-      // Prepare clean HTML for Word conversion (remove any CSS)
-      let wordReadyHtml = cleanHtmlContent
+      // Step 1: Extract only body content if wrapped in full HTML
+      const bodyMatch = cleanHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+      if (bodyMatch) {
+        cleanHtml = bodyMatch[1]
+      }
+
+      // Step 2: Remove all CSS and styling
+      cleanHtml = cleanHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      cleanHtml = cleanHtml.replace(/style="[^"]*"/gi, '')
+      cleanHtml = cleanHtml.replace(/class="[^"]*"/gi, '')
+      cleanHtml = cleanHtml.replace(/id="[^"]*"/gi, '')
+
+      // Step 3: Remove field placeholder spans but keep content
+      cleanHtml = cleanHtml.replace(/<span[^>]*class="field-placeholder"[^>]*>(.*?)<\/span>/gi, '$1')
       
-      // Remove any CSS that might have leaked in
-      wordReadyHtml = wordReadyHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      wordReadyHtml = wordReadyHtml.replace(/style="[^"]*"/g, '')
-      wordReadyHtml = wordReadyHtml.replace(/class="[^"]*"/g, '')
-      
-      // Ensure we have proper HTML structure
-      if (!wordReadyHtml.includes('<html>')) {
-        wordReadyHtml = `<!DOCTYPE html>
+      // Step 4: Remove any remaining spans
+      cleanHtml = cleanHtml.replace(/<span[^>]*>/gi, '')
+      cleanHtml = cleanHtml.replace(/<\/span>/gi, '')
+
+      // Step 5: Clean up extra whitespace and line breaks
+      cleanHtml = cleanHtml.replace(/\s+/g, ' ').trim()
+
+      // Step 6: Create very simple HTML structure for Word
+      const wordReadyHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Document</title>
 </head>
 <body>
-${wordReadyHtml}
+${cleanHtml}
 </body>
 </html>`
-      }
 
-      console.log('Converting HTML to DOCX...')
-      console.log('HTML content length:', wordReadyHtml.length)
-
-      // Convert to DOCX using html-to-docx with simplified options
-      const docxBuffer = await HTMLtoDOCX(wordReadyHtml, null, {
-        table: { row: { cantSplit: true } },
-        footer: false,
-        pageNumber: false
+      console.log('Attempting DOCX conversion with cleaned HTML...', {
+        originalLength: htmlContent.length,
+        cleanedLength: cleanHtml.length,
+        templateId
       })
 
-      console.log('Conversion result:', typeof docxBuffer, docxBuffer ? 'Buffer created' : 'No buffer')
+      // Try html-to-docx first
+      try {
+        const HTMLtoDOCX = (await import('html-to-docx')).default
+        
+        const docxBuffer = HTMLtoDOCX(wordReadyHtml, null, {
+          table: { row: { cantSplit: true } },
+          footer: false,
+          pageNumber: false
+        })
 
-      if (!docxBuffer) {
-        throw new Error('Failed to generate DOCX buffer - conversion returned null/undefined')
-      }
+        console.log('html-to-docx result:', {
+          type: typeof docxBuffer,
+          isBuffer: Buffer.isBuffer(docxBuffer),
+          hasLength: docxBuffer && docxBuffer.length !== undefined,
+          length: docxBuffer?.length
+        })
 
-      // Generate filename
-      const sanitizedTemplateName = document.templateName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_')
-      const sanitizedClientName = task.client_name.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_')
-      const fileName = `${sanitizedTemplateName}_${sanitizedClientName}.docx`
+        if (docxBuffer && (Buffer.isBuffer(docxBuffer) || docxBuffer.length > 0)) {
+          // Generate filename
+          const sanitizedTemplateName = document.templateName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_')
+          const sanitizedClientName = task.client_name.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_')
+          const fileName = `${sanitizedTemplateName}_${sanitizedClientName}.docx`
 
-      // Return Word document
-      return new Response(docxBuffer, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'Content-Disposition': `attachment; filename="${fileName}"`,
-          'Content-Length': docxBuffer.byteLength ? docxBuffer.byteLength.toString() : docxBuffer.length.toString(),
+          console.log('DOCX conversion successful with html-to-docx')
+
+          // Return Word document
+          return new Response(docxBuffer, {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              'Content-Disposition': `attachment; filename="${fileName}"`,
+              'Content-Length': docxBuffer.length.toString(),
+            }
+          })
+        } else {
+          throw new Error('html-to-docx returned invalid buffer')
         }
-      })
+
+      } catch (htmlToDocxError) {
+        console.error('html-to-docx failed:', htmlToDocxError)
+        console.log('Falling back to original docx library...')
+
+        // Fallback to the original docx library approach
+        const { Document, Packer, Paragraph, TextRun } = await import('docx')
+        
+        // Convert HTML to plain text for docx library
+        const plainText = cleanHtml
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<p[^>]*>/gi, '')
+          .replace(/<\/div>/gi, '\n')
+          .replace(/<div[^>]*>/gi, '')
+          .replace(/<h[1-6][^>]*>/gi, '\n\n**')
+          .replace(/<\/h[1-6]>/gi, '**\n')
+          .replace(/<li[^>]*>/gi, '• ')
+          .replace(/<\/li>/gi, '\n')
+          .replace(/<[^>]*>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/\n\s*\n\s*\n/g, '\n\n')
+          .trim()
+
+        // Create paragraphs for the Word document
+        const paragraphs = []
+        const lines = plainText.split('\n')
+        
+        lines.forEach(line => {
+          const trimmedLine = line.trim()
+          if (trimmedLine) {
+            if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
+              // Heading
+              const headingText = trimmedLine.replace(/\*\*/g, '')
+              paragraphs.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: headingText,
+                      bold: true,
+                      size: 28,
+                      font: 'Times New Roman'
+                    })
+                  ],
+                  spacing: { before: 300, after: 200 }
+                })
+              )
+            } else {
+              // Regular paragraph
+              paragraphs.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: trimmedLine,
+                      size: 24,
+                      font: 'Times New Roman'
+                    })
+                  ],
+                  spacing: { after: 200 }
+                })
+              )
+            }
+          }
+        })
+
+        // Create the Word document
+        const doc = new Document({
+          sections: [{
+            properties: {},
+            children: paragraphs
+          }]
+        })
+
+        // Generate the document buffer
+        const docxBuffer = await Packer.toBuffer(doc)
+
+        // Generate filename
+        const sanitizedTemplateName = document.templateName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_')
+        const sanitizedClientName = task.client_name.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_')
+        const fileName = `${sanitizedTemplateName}_${sanitizedClientName}.docx`
+
+        console.log('DOCX conversion successful with fallback docx library')
+
+        // Return Word document
+        return new Response(docxBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'Content-Disposition': `attachment; filename="${fileName}"`,
+            'Content-Length': docxBuffer.length.toString(),
+          }
+        })
+      }
 
     } catch (conversionError) {
-      console.error('Error creating Word document:', conversionError)
-      console.error('HTML content that failed:', cleanHtmlContent.substring(0, 500) + '...')
+      console.error('Both DOCX conversion methods failed:', conversionError)
       return NextResponse.json({ 
         error: `Failed to convert document to Word format: ${conversionError.message}` 
       }, { status: 500 })
