@@ -1,29 +1,31 @@
-Can you identify the problem? Before writing any code, tell me the issue and what you plan to do to fix it. Let me know if you need any othe files as well.
-
+1. 
 Before writing any code, let me know if you fully understand the process and what you plan to implement. Let me know if you need any othe files as well.
 
-Do not give me the full code with the edits, only the section/function of code with the changes made. For example if a function was changed, return me the full function, or if a client side component was changed, return me the div for that component. Let me know what files to make the changes in as well.
+Do not give me the full code with the edits, only the section/function of code with the changes made. For example if a function was changed, return me the full function, or if a client side component was changed, return me the div for that component. If its a new file, give me the full code. Let me know what files to make the changes in as well.
 
 
-ID	
-Owner	
-Partner	
-Company Name	
-Reg Company Name	
-Reg No	
-Country	India
-Address	(not set)
-Postal Code	(not set)
-Phone	+919024082454
-Email	nikhil.saini@unitedgarments.in
-Created By	(not set)
+Phase 1: Database & API Foundation
+Phase 2: UI Components
+Phase 3: Main Client Detail Page
+Phase 4: Navigation Updates
+Phase 5: Document Management
+Phase 6: Testing & Polish
+
+
+Owner	Name
+Partner
+Company Name
+Reg Company Name
+Reg No
+Country
+Address
+Postal Code
+Phone
+Email
+Created By
 Created On
 
-1. Create database table with migration
-2. Add 2 mock placeholders for testing
-3. Create placeholder management APIs (CRUD operations)
-4. Update field schema API to merge client fields + placeholders
-5. Transform UI components (CustomFieldBuilder → PlaceholderCreator, update tabs)
-6. Update DynamicFieldSelector to use unified field list
-7. Remove custom_fields column and related code
-8. Test the complete workflow
+Email
+Owner Name
+Country
+Phone Number

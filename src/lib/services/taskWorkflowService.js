@@ -8,61 +8,204 @@ export class TaskWorkflowService {
    * Start document generation process (in_progress → awaiting)
    */
   static async startDocumentGeneration(taskId) {
-  try {
-    if (!taskId) {
-      throw new Error('Task ID is required')
-    }
+    try {
+      const supabase = await createServerSupabase()
 
-    console.log(`Starting document generation for task: ${taskId}`)
+      // Get the task
+      const { data: task, error: taskError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single()
 
-    // Step 1: Mark documents for generation and update status
-    const markResult = await TaskDocumentService.markDocumentsForGeneration(taskId)
-    
-    if (!markResult.success) {
-      throw new Error(markResult.error)
-    }
+      if (taskError) {
+        throw new Error(`Failed to fetch task: ${taskError.message}`)
+      }
 
-    // Step 2: Generate actual documents (HTML population)
-    const generateResult = await TaskDocumentService.generateDocuments(taskId)
-    
-    if (!generateResult.success) {
-      // If generation fails, we keep the task in awaiting status with error
+      if (task.status !== 'in_progress') {
+        throw new Error('Task must be in progress to generate documents')
+      }
+
+      if (!task.template_ids || task.template_ids.length === 0) {
+        throw new Error('No templates found for this task')
+      }
+
+      console.log(`Starting document generation for ${task.template_ids.length} templates`)
+
+      // Update task status to awaiting
+      const { error: statusUpdateError } = await supabase
+        .from('tasks')
+        .update({
+          status: 'awaiting',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', taskId)
+
+      if (statusUpdateError) {
+        throw new Error(`Failed to update task status: ${statusUpdateError.message}`)
+      }
+
+      const generatedDocuments = []
+      const errors = []
+      let successCount = 0
+
+      // Generate documents for each template
+      for (const templateId of task.template_ids) {
+        try {
+          console.log(`Generating document for template: ${templateId}`)
+          
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/documents/generate`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              templateId,
+              clientId: task.client_id,
+              customFieldValues: task.custom_field_values || {}
+            })
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Document generation failed')
+          }
+
+          const result = await response.json()
+          
+          if (result.success && result.document) {
+            // Store both clean and enhanced HTML in storage
+            const cleanStoragePath = `tasks/${taskId}/documents/${templateId}_clean.html`
+            const enhancedStoragePath = `tasks/${taskId}/documents/${templateId}_enhanced.html`
+            
+            // Upload clean HTML
+            const { error: cleanUploadError } = await supabase.storage
+              .from('task-documents')
+              .upload(cleanStoragePath, result.document.generated_content, {
+                contentType: 'text/html',
+                upsert: true
+              })
+
+            // Upload enhanced HTML  
+            const { error: enhancedUploadError } = await supabase.storage
+              .from('task-documents')
+              .upload(enhancedStoragePath, result.document.enhanced_generated_content, {
+                contentType: 'text/html',
+                upsert: true
+              })
+
+            if (cleanUploadError || enhancedUploadError) {
+              console.error('Storage upload errors:', { cleanUploadError, enhancedUploadError })
+              throw new Error('Failed to store generated documents')
+            }
+
+            // Add document info to generated documents array
+            generatedDocuments.push({
+              templateId,
+              templateName: result.document.original_template_name,
+              fileName: `${result.document.original_template_name.replace(/[^a-zA-Z0-9]/g, '_')}.html`,
+              status: 'generated',
+              generatedAt: new Date().toISOString(),
+              storagePath: enhancedStoragePath, // Default to enhanced for web preview
+              cleanStoragePath: cleanStoragePath, // Store clean path for Word conversion
+              documentId: result.document.id
+            })
+
+            successCount++
+          }
+        } catch (error) {
+          console.error(`Error generating document for template ${templateId}:`, error)
+          
+          // Add failed document to the array
+          generatedDocuments.push({
+            templateId,
+            templateName: `Template ${templateId}`,
+            status: 'failed',
+            error: error.message,
+            generatedAt: new Date().toISOString()
+          })
+          
+          errors.push(`Template ${templateId}: ${error.message}`)
+        }
+      }
+
+      // Update task with generation results
+      const updateData = {
+        generated_documents: generatedDocuments,
+        generation_completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      // If all documents failed, add error
+      if (successCount === 0) {
+        updateData.generation_error = `All document generation failed: ${errors.join('; ')}`
+      } else if (errors.length > 0) {
+        // Partial success - store warnings
+        updateData.generation_error = `Partial generation failure: ${errors.join('; ')}`
+      } else {
+        // Clear any previous errors
+        updateData.generation_error = null
+      }
+
+      const { data: updatedTask, error: updateError } = await supabase
+        .from('tasks')
+        .update(updateData)
+        .eq('id', taskId)
+        .select()
+        .single()
+
+      if (updateError) {
+        throw new Error(`Failed to update task with generation results: ${updateError.message}`)
+      }
+
+      console.log(`Document generation completed. Success: ${successCount}, Failures: ${errors.length}`)
+
+      // Return result
+      if (successCount === 0) {
+        return {
+          success: false,
+          error: `All document generation failed: ${errors.join('; ')}`,
+          task: updatedTask,
+          partialGeneration: false
+        }
+      } else if (errors.length > 0) {
+        return {
+          success: true,
+          task: updatedTask,
+          documentsGenerated: successCount,
+          warnings: errors,
+          partialGeneration: true
+        }
+      } else {
+        return {
+          success: true,
+          task: updatedTask,
+          documentsGenerated: successCount
+        }
+      }
+
+    } catch (error) {
+      console.error('Error in document generation process:', error)
+
+      // Try to update task with error status
+      try {
+        const supabase = await createServerSupabase()
+        await supabase
+          .from('tasks')
+          .update({
+            generation_error: error.message,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', taskId)
+      } catch (updateError) {
+        console.error('Failed to update task with error:', updateError)
+      }
+
       return {
         success: false,
-        error: generateResult.error,
-        task: markResult.task,
-        partialGeneration: true
+        error: error.message
       }
     }
-
-    // Step 3: Create signed document folders for generated templates
-    try {
-      const { SignedDocumentStorageService } = await import('@/lib/services/signedDocumentStorageService')
-      const templateIds = generateResult.task.template_ids || []
-      
-      console.log(`Creating signed document folders for task: ${taskId}`)
-      await SignedDocumentStorageService.createSignedDocumentFolders(taskId, templateIds)
-    } catch (folderError) {
-      console.error('Error creating signed document folders:', folderError)
-      // Don't fail the entire process if folder creation fails
-      // Just log the error and continue
-    }
-
-    console.log(`Document generation completed for task: ${taskId}`)
-
-    return {
-      success: true,
-      task: generateResult.task,
-      documentsGenerated: generateResult.generatedDocuments,
-      warnings: generateResult.errors
-    }
-  } catch (error) {
-    console.error('Error in document generation workflow:', error)
-    return {
-      success: false,
-      error: error.message
-    }
-  }
   }
 
   /**

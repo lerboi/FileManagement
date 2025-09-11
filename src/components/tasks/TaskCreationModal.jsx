@@ -66,7 +66,7 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, onDr
 
   const loadExistingDraft = async (draft) => {
     try {
-      setIsLoadingDraft(true) // Start loading
+      setIsLoadingDraft(true)
       setCurrentDraftId(draft.id)
       setShowDraftSelector(false)
       
@@ -85,59 +85,103 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, onDr
       
       setFormData(draftFormData)
 
-      // Fetch initial data first
+      // Fetch initial data and wait for it to complete
       await fetchInitialData()
       
-      // Wait a moment for state to update, then set selected items
-      setTimeout(async () => {
-        // Find and set the selected service and client from the draft
-        if (availableServices.length > 0 && draft.service_id) {
-          const service = availableServices.find(s => s.id === draft.service_id)
-          if (service) {
-            setSelectedService(service)
-            // Update formData with service_id while preserving custom field values
-            setFormData(prev => ({
-              ...prev,
-              service_id: service.id,
-              custom_field_values: draftCustomFieldValues // Explicitly preserve
-            }))
-            
-            // Load placeholders for this service
-            try {
-              const response = await fetch(`/api/services/${service.id}/placeholders`)
-              if (response.ok) {
-                const data = await response.json()
-                setServiceCustomFields(data.placeholders || [])
-              }
-            } catch (error) {
-              console.error('Error fetching service placeholders:', error)
-            }
-          }
+      // Now fetch the services and clients directly to ensure we have the data
+      let services = []
+      let clients = []
+      
+      try {
+        const [servicesResponse, clientsResponse] = await Promise.all([
+          fetch('/api/services'),
+          fetch('/api/clients')
+        ])
+        
+        if (servicesResponse.ok) {
+          const servicesData = await servicesResponse.json()
+          services = servicesData.services || []
+          setAvailableServices(services)
         }
         
-        if (availableClients.length > 0 && draft.client_id) {
-          const client = availableClients.find(c => c.id === draft.client_id)
-          if (client) {
-            setSelectedClient(client)
-            // Update formData with client_id while preserving custom field values
-            setFormData(prev => ({
-              ...prev,
-              client_id: client.id,
-              custom_field_values: draftCustomFieldValues // Explicitly preserve
-            }))
+        if (clientsResponse.ok) {
+          const clientsData = await clientsResponse.json()
+          clients = clientsData.clients || []
+          setAvailableClients(clients)
+        }
+      } catch (error) {
+        console.error('Error fetching services/clients:', error)
+      }
+
+      // Now process the draft data with the fresh data
+      let loadedServiceCustomFields = []
+      
+      // Find and set selected service and client using the fresh data
+      if (services.length > 0 && draft.service_id) {
+        const service = services.find(s => s.id === draft.service_id)
+        if (service) {
+          setSelectedService(service)
+          setFormData(prev => ({
+            ...prev,
+            service_id: service.id,
+            custom_field_values: draftCustomFieldValues
+          }))
+          
+          // Load placeholders for this service
+          try {
+            const response = await fetch(`/api/services/${service.id}/placeholders`)
+            if (response.ok) {
+              const data = await response.json()
+              loadedServiceCustomFields = data.placeholders || []
+              setServiceCustomFields(loadedServiceCustomFields)
+            }
+          } catch (error) {
+            console.error('Error fetching service placeholders:', error)
           }
         }
+      }
+      
+      if (clients.length > 0 && draft.client_id) {
+        const client = clients.find(c => c.id === draft.client_id)
+        if (client) {
+          setSelectedClient(client)
+          setFormData(prev => ({
+            ...prev,
+            client_id: client.id,
+            custom_field_values: draftCustomFieldValues
+          }))
+        }
+      }
 
-        // Always start at step 1 when continuing to edit
-        setCurrentStep(1)
-        setIsLoadingDraft(false) // End loading
-      }, 300)
+      // Determine which step to show based on completed data
+      if (!draft.service_id) {
+        setCurrentStep(1) // Service selection
+      } else if (!draft.client_id) {
+        setCurrentStep(2) // Client selection
+      } else if (loadedServiceCustomFields.length > 0) {
+        // Check if custom fields are completed
+        const requiredFields = loadedServiceCustomFields.filter(field => field.required)
+        const missingFields = requiredFields.filter(field => {
+          const value = draftCustomFieldValues[field.name] || draftCustomFieldValues[field.label]
+          return !value || (typeof value === 'string' && !value.trim())
+        })
+        
+        if (missingFields.length > 0) {
+          setCurrentStep(3) // Requirements
+        } else {
+          setCurrentStep(4) // Review
+        }
+      } else {
+        setCurrentStep(4) // Review if no custom fields
+      }
       
     } catch (error) {
       console.error('Error loading existing draft:', error)
       setError('Failed to load draft')
-      setIsLoadingDraft(false) // End loading on error
+      setIsLoadingDraft(false)
       startNewTask()
+    } finally {
+      setIsLoadingDraft(false)
     }
   }
 
@@ -176,74 +220,95 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, onDr
       
       setFormData(draftFormData)
 
-      // Fetch initial data first
+      // Fetch initial data and wait for it to complete
       await fetchInitialData()
       
-      // Wait a moment for state to update, then set selected items
-      setTimeout(async () => {
-        let loadedServiceCustomFields = []
+      // Now fetch the services and clients directly to ensure we have the data
+      let services = []
+      let clients = []
+      
+      try {
+        const [servicesResponse, clientsResponse] = await Promise.all([
+          fetch('/api/services'),
+          fetch('/api/clients')
+        ])
         
-        // Find and set selected service and client
-        if (availableServices.length > 0 && draft.service_id) {
-          const service = availableServices.find(s => s.id === draft.service_id)
-          if (service) {
-            setSelectedService(service)
-            // Update formData with service_id while preserving custom field values
-            setFormData(prev => ({
-              ...prev,
-              service_id: service.id,
-              custom_field_values: draftCustomFieldValues // Explicitly preserve
-            }))
-            
-            // Load placeholders for this service
-            try {
-              const response = await fetch(`/api/services/${service.id}/placeholders`)
-              if (response.ok) {
-                const data = await response.json()
-                loadedServiceCustomFields = data.placeholders || []
-                setServiceCustomFields(loadedServiceCustomFields)
-              }
-            } catch (error) {
-              console.error('Error fetching service placeholders:', error)
-            }
-          }
+        if (servicesResponse.ok) {
+          const servicesData = await servicesResponse.json()
+          services = servicesData.services || []
+          setAvailableServices(services)
         }
         
-        if (availableClients.length > 0 && draft.client_id) {
-          const client = availableClients.find(c => c.id === draft.client_id)
-          if (client) {
-            setSelectedClient(client)
-            // Update formData with client_id while preserving custom field values
-            setFormData(prev => ({
-              ...prev,
-              client_id: client.id,
-              custom_field_values: draftCustomFieldValues // Explicitly preserve
-            }))
-          }
+        if (clientsResponse.ok) {
+          const clientsData = await clientsResponse.json()
+          clients = clientsData.clients || []
+          setAvailableClients(clients)
         }
+      } catch (error) {
+        console.error('Error fetching services/clients:', error)
+      }
 
-        // Determine which step to show based on completed data
-        if (!draft.service_id) {
-          setCurrentStep(1) // Service selection
-        } else if (!draft.client_id) {
-          setCurrentStep(2) // Client selection
-        } else if (loadedServiceCustomFields.length > 0) {
-          // Check if custom fields are completed
-          const requiredFields = loadedServiceCustomFields.filter(field => field.required)
-          const missingFields = requiredFields.filter(field => {
-            const value = draftCustomFieldValues[field.name] || draftCustomFieldValues[field.label]
-            return !value || (typeof value === 'string' && !value.trim())
-          })
+      // Now process the draft data with the fresh data
+      let loadedServiceCustomFields = []
+      
+      // Find and set selected service and client using the fresh data
+      if (services.length > 0 && draft.service_id) {
+        const service = services.find(s => s.id === draft.service_id)
+        if (service) {
+          setSelectedService(service)
+          setFormData(prev => ({
+            ...prev,
+            service_id: service.id,
+            custom_field_values: draftCustomFieldValues
+          }))
           
-          if (missingFields.length > 0) {
-            setCurrentStep(3) // Requirements
-          } else {
-            setCurrentStep(4) // Review
+          // Load placeholders for this service
+          try {
+            const response = await fetch(`/api/services/${service.id}/placeholders`)
+            if (response.ok) {
+              const data = await response.json()
+              loadedServiceCustomFields = data.placeholders || []
+              setServiceCustomFields(loadedServiceCustomFields)
+            }
+          } catch (error) {
+            console.error('Error fetching service placeholders:', error)
           }
-        } else {
-          setCurrentStep(4) // Review if no custom fields
         }
-      }, 300)
+      }
+      
+      if (clients.length > 0 && draft.client_id) {
+        const client = clients.find(c => c.id === draft.client_id)
+        if (client) {
+          setSelectedClient(client)
+          setFormData(prev => ({
+            ...prev,
+            client_id: client.id,
+            custom_field_values: draftCustomFieldValues
+          }))
+        }
+      }
+
+      // Determine which step to show based on completed data
+      if (!draft.service_id) {
+        setCurrentStep(1) // Service selection
+      } else if (!draft.client_id) {
+        setCurrentStep(2) // Client selection
+      } else if (loadedServiceCustomFields.length > 0) {
+        // Check if custom fields are completed
+        const requiredFields = loadedServiceCustomFields.filter(field => field.required)
+        const missingFields = requiredFields.filter(field => {
+          const value = draftCustomFieldValues[field.name] || draftCustomFieldValues[field.label]
+          return !value || (typeof value === 'string' && !value.trim())
+        })
+        
+        if (missingFields.length > 0) {
+          setCurrentStep(3) // Requirements
+        } else {
+          setCurrentStep(4) // Review
+        }
+      } else {
+        setCurrentStep(4) // Review if no custom fields
+      }
       
     } catch (error) {
       console.error('Error resuming draft:', error)

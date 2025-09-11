@@ -21,8 +21,8 @@ export async function POST(request) {
 
     const supabase = await createServerSupabase()
 
-    // Fetch template with custom_fields
-    console.log('Fetching template with custom fields...')
+    // Fetch template with both HTML versions
+    console.log('Fetching template with dual HTML content...')
     const { data: template, error: templateError } = await supabase
       .from('document_templates')
       .select('*')
@@ -54,28 +54,43 @@ export async function POST(request) {
       throw new Error(`Failed to fetch client: ${clientError.message}`)
     }
 
-    // Generate document with template's custom fields
-    console.log('Generating document...')
-    const generatedHtml = generateDocumentFromTemplate(
-      template.html_content, 
+    // Generate clean document for Word conversion
+    console.log('Generating clean document for Word conversion...')
+    const cleanGeneratedHtml = generateDocumentFromTemplate(
+      template.html_content, // Use clean HTML
       client, 
       customFieldValues,
-      template.custom_fields || [] // Pass the template's custom fields
+      template.custom_fields || []
     )
 
-    // Create document record
+    // Generate enhanced document for web preview
+    console.log('Generating enhanced document for web preview...')
+    const enhancedSourceHtml = template.enhanced_html_content || template.html_content
+    const enhancedGeneratedHtml = generateDocumentFromTemplate(
+      enhancedSourceHtml,
+      client, 
+      customFieldValues,
+      template.custom_fields || []
+    )
+
+    // Create document record with both versions
     const documentData = {
       template_id: templateId,
       client_id: clientId,
-      generated_content: generatedHtml,
+      generated_content: cleanGeneratedHtml, // Clean for Word
+      enhanced_generated_content: enhancedGeneratedHtml, // Enhanced for web
       original_template_name: template.name,
       client_name: `${client.first_name} ${client.last_name}`,
       status: 'generated',
       created_at: new Date().toISOString(),
-      custom_field_values: customFieldValues // Store custom field values used
+      custom_field_values: customFieldValues
     }
 
-    console.log('Saving document record...')
+    console.log('Saving document with dual HTML versions...', {
+      cleanLength: cleanGeneratedHtml.length,
+      enhancedLength: enhancedGeneratedHtml.length
+    })
+
     const { data: savedDocument, error: saveError } = await supabase
       .from('generated_documents')
       .insert([documentData])
@@ -87,12 +102,12 @@ export async function POST(request) {
       throw new Error(`Failed to save document: ${saveError.message}`)
     }
 
-    console.log('Document generated successfully:', savedDocument.id)
+    console.log('Document generated successfully with dual versions:', savedDocument.id)
 
     return NextResponse.json({
       success: true,
       document: savedDocument,
-      generatedHtml
+      generatedHtml: enhancedGeneratedHtml // Return enhanced for immediate web display
     })
 
   } catch (error) {

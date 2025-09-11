@@ -48,7 +48,7 @@ export class DocumentProcessingService {
     }
   }
 
-  // Enhance HTML to preserve formatting when converting back to Word
+  // Enhanced HTML creation for web display only
   static enhanceHtmlForPreservation(html) {
     const enhancedHtml = `
       <!DOCTYPE html>
@@ -117,6 +117,37 @@ export class DocumentProcessingService {
     return enhancedHtml
   }
 
+  // Store both clean and enhanced HTML versions
+  static createDualHtmlVersions(cleanHtml) {
+    const enhancedHtml = this.enhanceHtmlForPreservation(cleanHtml)
+    
+    return {
+      clean: cleanHtml,
+      enhanced: enhancedHtml
+    }
+  }
+
+  // Clean HTML preparation for Word conversion
+  static prepareHtmlForWord(html) {
+    let cleanHtml = html
+
+    // Remove any CSS classes and IDs that might interfere
+    cleanHtml = cleanHtml.replace(/class="[^"]*"/g, '')
+    cleanHtml = cleanHtml.replace(/id="[^"]*"/g, '')
+    
+    // Remove any style attributes that might cause issues
+    cleanHtml = cleanHtml.replace(/style="[^"]*"/g, '')
+    
+    // Ensure proper table structure for Word
+    cleanHtml = cleanHtml.replace(/<table[^>]*>/g, '<table>')
+    
+    // Remove any remaining CSS or script tags
+    cleanHtml = cleanHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    cleanHtml = cleanHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    
+    return cleanHtml
+  }
+
   // AI-powered field mapping using dynamic schema
   static async suggestFieldMappings(htmlContent) {
     try {
@@ -179,7 +210,6 @@ export class DocumentProcessingService {
     }
   }
 
-  // Save template to database with dynamic field validation
   static async saveTemplate(templateData) {
     try {
       // Validate that all field mappings are still valid
@@ -187,21 +217,34 @@ export class DocumentProcessingService {
         const validationResult = await this.validateFieldMappings(templateData.field_mappings)
         if (!validationResult.valid) {
           console.warn('Some field mappings are invalid:', validationResult.invalidFields)
-          // Optionally, you could remove invalid mappings or return an error
         }
       }
+
+      // Create both HTML versions
+      const cleanHtml = templateData.html_content
+      const { enhanced } = this.createDualHtmlVersions(cleanHtml)
 
       const supabase = await createServerSupabase()
       
       const { data, error } = await supabase
         .from('document_templates')
-        .insert([templateData])
+        .insert([{
+          ...templateData,
+          html_content: cleanHtml, // Clean HTML for Word conversion
+          enhanced_html_content: enhanced // Enhanced HTML for web preview
+        }])
         .select()
         .single()
 
       if (error) {
         throw new Error(`Failed to save template: ${error.message}`)
       }
+
+      console.log('Template saved with dual HTML versions:', {
+        templateId: data.id,
+        cleanHtmlLength: cleanHtml.length,
+        enhancedHtmlLength: enhanced.length
+      })
 
       return {
         success: true,
