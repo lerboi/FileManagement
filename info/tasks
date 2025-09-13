@@ -28,4 +28,6 @@ Save a create client process as draft
 Overall:
 - Add ability to set status 
 - Change the Client Information section in client page from harcoded showing client information to fetching database columns from client table in db and showing them.
-
+- When clicking on a field to copy in Available Placeholders, stop the Available Placeholders modal from closing. It should remain open when the user copies something.
+- Change the Template Submission process to be more clear. Add a step by step process with 3 steps, similar to task creation. the first step should not have any input, but just prompt the user to create the wordx template with the appropriate placeholders. It should show all available placeholders for the user to copy and reference. When the next button is clicked, the Upload template section should show, prompting the user to Upload the document and put the name and description. The final part should be the existing  confirmation section to show all the detected placeholders etc.
+- Implement doc to docx file change when uploading files.
