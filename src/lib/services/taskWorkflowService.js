@@ -22,110 +22,132 @@ export class TaskWorkflowService {
         throw new Error(`Failed to fetch task: ${taskError.message}`)
       }
 
-      if (task.status !== 'in_progress') {
-        throw new Error('Task must be in progress to generate documents')
+      console.log('Task status check:', {
+        taskId,
+        currentStatus: task.status,
+        isDraft: task.is_draft
+      })
+
+      // Allow generation for both 'in_progress' and non-draft tasks that haven't generated documents yet
+      const allowedStatuses = ['in_progress']
+      const hasExistingDocuments = task.generated_documents && task.generated_documents.length > 0
+
+      if (!allowedStatuses.includes(task.status)) {
+        // If task is not draft and has no existing documents, allow generation anyway
+        if (task.is_draft) {
+          throw new Error('Cannot generate documents for draft tasks. Please finalize the task first.')
+        }
+        
+        if (hasExistingDocuments && task.status === 'awaiting') {
+          console.log('Task already has generated documents, proceeding with regeneration...')
+        } else {
+          console.log(`Allowing document generation for task with status: ${task.status}`)
+        }
       }
 
       if (!task.template_ids || task.template_ids.length === 0) {
         throw new Error('No templates found for this task')
       }
 
-      console.log(`Starting document generation for ${task.template_ids.length} templates`)
+      console.log(`Starting DOCX document generation for ${task.template_ids.length} templates`)
 
-      // Update task status to awaiting
-      const { error: statusUpdateError } = await supabase
-        .from('tasks')
-        .update({
-          status: 'awaiting',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', taskId)
+      // Update task status to awaiting (regardless of current status, except if already completed)
+      if (task.status !== 'completed') {
+        const { error: statusUpdateError } = await supabase
+          .from('tasks')
+          .update({
+            status: 'awaiting',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', taskId)
 
-      if (statusUpdateError) {
-        throw new Error(`Failed to update task status: ${statusUpdateError.message}`)
+        if (statusUpdateError) {
+          throw new Error(`Failed to update task status: ${statusUpdateError.message}`)
+        }
       }
 
       const generatedDocuments = []
       const errors = []
       let successCount = 0
 
-      // Generate documents for each template
+      // Generate DOCX documents for each template
       for (const templateId of task.template_ids) {
         try {
-          console.log(`Generating document for template: ${templateId}`)
+          console.log(`Generating DOCX document for template: ${templateId}`)
           
-          const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/documents/generate`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              templateId,
-              clientId: task.client_id,
-              customFieldValues: task.custom_field_values || {}
+          // Call DocxtemplaterService directly instead of making HTTP request
+          const { DocxtemplaterService } = await import('./docxtemplaterService')
+          const result = await DocxtemplaterService.generateDocument(
+            templateId,
+            task.client_id,
+            task.custom_field_values || {}
+          )
+
+          if (!result.success) {
+            throw new Error(result.error)
+          }
+
+          // Store DOCX file in task-documents bucket
+          const storagePath = `${task.client_id}/${taskId}/${templateId}_${result.fileName}`
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('task-documents')
+            .upload(storagePath, result.buffer, {
+              contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              upsert: true
             })
+
+          if (uploadError) {
+            throw new Error(`Failed to store DOCX document: ${uploadError.message}`)
+          }
+
+          // Get template name from the result (DocxtemplaterService already has this)
+          const templateName = result.document.original_template_name
+
+          // Add document info to generated documents array
+          generatedDocuments.push({
+            templateId,
+            templateName,
+            fileName: result.fileName.replace('.docx', ''),
+            status: 'generated',
+            generatedAt: new Date().toISOString(),
+            storagePath,
+            fileType: 'docx',
+            fileSize: result.buffer.byteLength
           })
 
-          if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Document generation failed')
-          }
+          successCount++
 
-          const result = await response.json()
-          
-          if (result.success && result.document) {
-            // Store both clean and enhanced HTML in storage
-            const cleanStoragePath = `tasks/${taskId}/documents/${templateId}_clean.html`
-            const enhancedStoragePath = `tasks/${taskId}/documents/${templateId}_enhanced.html`
-            
-            // Upload clean HTML
-            const { error: cleanUploadError } = await supabase.storage
-              .from('task-documents')
-              .upload(cleanStoragePath, result.document.generated_content, {
-                contentType: 'text/html',
-                upsert: true
-              })
-
-            // Upload enhanced HTML  
-            const { error: enhancedUploadError } = await supabase.storage
-              .from('task-documents')
-              .upload(enhancedStoragePath, result.document.enhanced_generated_content, {
-                contentType: 'text/html',
-                upsert: true
-              })
-
-            if (cleanUploadError || enhancedUploadError) {
-              console.error('Storage upload errors:', { cleanUploadError, enhancedUploadError })
-              throw new Error('Failed to store generated documents')
-            }
-
-            // Add document info to generated documents array
-            generatedDocuments.push({
-              templateId,
-              templateName: result.document.original_template_name,
-              fileName: `${result.document.original_template_name.replace(/[^a-zA-Z0-9]/g, '_')}.html`,
-              status: 'generated',
-              generatedAt: new Date().toISOString(),
-              storagePath: enhancedStoragePath, // Default to enhanced for web preview
-              cleanStoragePath: cleanStoragePath, // Store clean path for Word conversion
-              documentId: result.document.id
-            })
-
-            successCount++
-          }
         } catch (error) {
-          console.error(`Error generating document for template ${templateId}:`, error)
+          console.error(`Error generating DOCX document for template ${templateId}:`, error)
           
+          // Get template name for error display
+          let templateName = `Template ${templateId}`
+          try {
+            const { data: templateData } = await supabase
+              .from('document_templates')
+              .select('name')
+              .eq('id', templateId)
+              .single()
+            
+            if (templateData) {
+              templateName = templateData.name
+            }
+          } catch (nameError) {
+            console.warn('Could not fetch template name for error display')
+          }
+
           // Add failed document to the array
           generatedDocuments.push({
             templateId,
-            templateName: `Template ${templateId}`,
+            templateName,
             status: 'failed',
             error: error.message,
-            generatedAt: new Date().toISOString()
+            generatedAt: new Date().toISOString(),
+            fileType: 'docx'
           })
           
-          errors.push(`Template ${templateId}: ${error.message}`)
+          errors.push(`${templateName}: ${error.message}`)
         }
       }
 
@@ -138,10 +160,10 @@ export class TaskWorkflowService {
 
       // If all documents failed, add error
       if (successCount === 0) {
-        updateData.generation_error = `All document generation failed: ${errors.join('; ')}`
+        updateData.generation_error = `All DOCX document generation failed: ${errors.join('; ')}`
       } else if (errors.length > 0) {
         // Partial success - store warnings
-        updateData.generation_error = `Partial generation failure: ${errors.join('; ')}`
+        updateData.generation_error = `Partial DOCX generation failure: ${errors.join('; ')}`
       } else {
         // Clear any previous errors
         updateData.generation_error = null
@@ -158,13 +180,13 @@ export class TaskWorkflowService {
         throw new Error(`Failed to update task with generation results: ${updateError.message}`)
       }
 
-      console.log(`Document generation completed. Success: ${successCount}, Failures: ${errors.length}`)
+      console.log(`DOCX document generation completed. Success: ${successCount}, Failures: ${errors.length}`)
 
       // Return result
       if (successCount === 0) {
         return {
           success: false,
-          error: `All document generation failed: ${errors.join('; ')}`,
+          error: `All DOCX document generation failed: ${errors.join('; ')}`,
           task: updatedTask,
           partialGeneration: false
         }
@@ -185,7 +207,7 @@ export class TaskWorkflowService {
       }
 
     } catch (error) {
-      console.error('Error in document generation process:', error)
+      console.error('Error in DOCX document generation process:', error)
 
       // Try to update task with error status
       try {

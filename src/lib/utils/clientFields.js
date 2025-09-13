@@ -62,3 +62,6 @@ export function getClientPlaceholders(detectedPlaceholders = []) {
       category: 'client'
     }))
 }
+
+// Ensure this export exists at the end of the file
+export { getCustomPlaceholders, isClientField }

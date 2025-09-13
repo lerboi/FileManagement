@@ -494,17 +494,57 @@ export default function TaskCreationModal({ isOpen, onClose, onTaskCreated, onDr
       
       setCurrentStep(3) // Go to Requirements
     } else if (currentStep === 3) {
-      // Validate required custom fields
+      // Strict validation for custom fields
       const requiredFields = serviceCustomFields.filter(field => field.required)
-      const missingFields = requiredFields.filter(field => {
-        const value = formData.custom_field_values[field.name] || formData.custom_field_values[field.label]
+      const allFields = serviceCustomFields // Validate all fields, not just required ones
+      
+      // Check for empty required fields
+      const emptyRequiredFields = requiredFields.filter(field => {
+        const fieldKey = field.name || field.label
+        const value = formData.custom_field_values[fieldKey]
         return !value || (typeof value === 'string' && !value.trim())
       })
 
-      if (missingFields.length > 0) {
-        setError(`Please fill in required fields: ${missingFields.map(f => f.label || f.name).join(', ')}`)
+      // Check for validation errors in any fields
+      const fieldValidationErrors = []
+      allFields.forEach(field => {
+        const fieldKey = field.name || field.label
+        const value = formData.custom_field_values[fieldKey]
+        
+        if (value && field.type) {
+          switch (field.type) {
+            case 'email':
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+              if (!emailRegex.test(value)) {
+                fieldValidationErrors.push(`${field.label || field.name}: Invalid email format`)
+              }
+              break
+            case 'number':
+              if (isNaN(value) || value === '') {
+                fieldValidationErrors.push(`${field.label || field.name}: Must be a valid number`)
+              }
+              break
+            case 'date':
+              if (isNaN(Date.parse(value))) {
+                fieldValidationErrors.push(`${field.label || field.name}: Invalid date format`)
+              }
+              break
+          }
+        }
+      })
+
+      // Show errors if any validation fails
+      if (emptyRequiredFields.length > 0) {
+        const fieldNames = emptyRequiredFields.map(f => f.label || f.name).join(', ')
+        setError(`Please fill in all required fields: ${fieldNames}`)
         return
       }
+
+      if (fieldValidationErrors.length > 0) {
+        setError(`Please fix validation errors: ${fieldValidationErrors.join('; ')}`)
+        return
+      }
+
       setCurrentStep(4) // Go to Review
     }
     setError('')

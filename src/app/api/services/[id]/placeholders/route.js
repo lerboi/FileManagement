@@ -45,10 +45,10 @@ export async function GET(request, { params }) {
       })
     }
     
-    // Get templates and their field mappings
+    // Get templates with detected_placeholders
     const { data: templates, error: templatesError } = await supabase
       .from('document_templates')
-      .select('id, name, field_mappings')
+      .select('id, name, detected_placeholders')
       .in('id', service.template_ids)
       .eq('status', 'active')
     
@@ -56,91 +56,63 @@ export async function GET(request, { params }) {
       throw new Error(`Failed to fetch templates: ${templatesError.message}`)
     }
     
-    // Extract all placeholder names from field mappings
-    const placeholderNames = new Set()
+    // Check if any templates have null/empty detected_placeholders
+    const templatesWithoutPlaceholders = templates.filter(
+      template => !template.detected_placeholders || template.detected_placeholders.length === 0
+    )
+    
+    if (templatesWithoutPlaceholders.length > 0) {
+      const templateNames = templatesWithoutPlaceholders.map(t => t.name).join(', ')
+      return NextResponse.json({
+        success: false,
+        error: `Templates not configured properly: ${templateNames}. Please upload DOCX templates with placeholders first.`,
+        unconfiguredTemplates: templatesWithoutPlaceholders.map(t => ({ id: t.id, name: t.name }))
+      }, { status: 400 })
+    }
+    
+    // Collect all detected placeholders from all templates
+    const allDetectedPlaceholders = []
     const templateInfo = []
     
     templates.forEach(template => {
-      const fieldMappings = template.field_mappings || {}
-      const templatePlaceholders = []
+      const detectedPlaceholders = template.detected_placeholders || []
       
-      Object.values(fieldMappings).forEach(fieldName => {
-        placeholderNames.add(fieldName)
-        templatePlaceholders.push(fieldName)
+      detectedPlaceholders.forEach(placeholder => {
+        // Add to collection if not already present
+        if (!allDetectedPlaceholders.find(p => p.name === placeholder.name)) {
+          allDetectedPlaceholders.push(placeholder)
+        }
       })
       
       templateInfo.push({
         id: template.id,
         name: template.name,
-        placeholders: templatePlaceholders
+        placeholderCount: detectedPlaceholders.length
       })
     })
     
-    if (placeholderNames.size === 0) {
-      return NextResponse.json({
-        success: true,
-        placeholders: [],
-        serviceName: service.name,
-        templateCount: templates.length,
-        templateInfo
-      })
-    }
+    // Import and apply client field filtering
+    const { getCustomPlaceholders } = await import('@/lib/utils/clientFields')
+    const customPlaceholders = getCustomPlaceholders(allDetectedPlaceholders)
     
-    // Get placeholder definitions from document_placeholders table
-    const { data: placeholderDefs, error: placeholdersError } = await supabase
-      .from('document_placeholders')
-      .select('*')
-      .in('name', Array.from(placeholderNames))
-      .order('name', { ascending: true })
-    
-    if (placeholdersError) {
-      throw new Error(`Failed to fetch placeholder definitions: ${placeholdersError.message}`)
-    }
-    
-    // Format placeholders for frontend (convert to custom field format)
-    const formattedPlaceholders = placeholderDefs.map(placeholder => ({
-      name: placeholder.name,
-      label: placeholder.label,
-      description: placeholder.description,
-      type: placeholder.field_type,
-      required: true, // All placeholders in templates are considered required
-      category: 'document',
-      source: 'placeholder',
-      placeholder_id: placeholder.id
-    }))
-    
-    // Add any missing placeholders (placeholders referenced in templates but not in DB)
-    const foundNames = new Set(placeholderDefs.map(p => p.name))
-    const missingPlaceholders = []
-    
-    placeholderNames.forEach(name => {
-      if (!foundNames.has(name)) {
-        missingPlaceholders.push({
-          name,
-          label: name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-          description: `Missing placeholder: ${name}`,
-          type: 'text',
-          required: true,
-          category: 'missing',
-          source: 'missing'
-        })
-      }
+    console.log('Service placeholders processing:', {
+      serviceId: id,
+      serviceName: service.name,
+      totalTemplates: templates.length,
+      totalDetectedPlaceholders: allDetectedPlaceholders.length,
+      customPlaceholders: customPlaceholders.length
     })
-    
-    const allPlaceholders = [...formattedPlaceholders, ...missingPlaceholders]
     
     return NextResponse.json({
       success: true,
-      placeholders: allPlaceholders,
+      placeholders: customPlaceholders,
       serviceName: service.name,
       templateCount: templates.length,
       templateInfo,
-      source: 'database_fallback',
       stats: {
-        totalPlaceholders: allPlaceholders.length,
-        foundInDB: formattedPlaceholders.length,
-        missing: missingPlaceholders.length,
-        fromTemplateDefinitions: 0
+        totalPlaceholders: allDetectedPlaceholders.length,
+        customPlaceholders: customPlaceholders.length,
+        clientFields: allDetectedPlaceholders.length - customPlaceholders.length
       }
     })
     
