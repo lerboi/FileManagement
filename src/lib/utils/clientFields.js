@@ -63,5 +63,3 @@ export function getClientPlaceholders(detectedPlaceholders = []) {
     }))
 }
 
-// Ensure this export exists at the end of the file
-export { getCustomPlaceholders, isClientField }
