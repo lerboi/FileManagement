@@ -198,14 +198,13 @@ export class DocxtemplaterService {
       const documentData = {
         template_id: templateId,
         client_id: clientId,
+        generated_content: 'DOCX file generated', // Store placeholder since we're not storing HTML anymore
         original_template_name: template.name,
         client_name: `${client.first_name} ${client.last_name}`,
         status: 'generated',
         created_at: new Date().toISOString(),
-        custom_field_values: customFieldValues,
-        // Store the actual data used for generation
-        generated_data: templateData,
-        generation_method: 'docxtemplater'
+        custom_field_values: customFieldValues
+        // Removed: generated_data and generation_method (columns don't exist)
       }
 
       const { data: savedDocument, error: saveError } = await supabase
