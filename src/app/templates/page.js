@@ -2,7 +2,7 @@
 'use client'
 import TemplateEditorModal from '@/components/templates/TemplateEditorModal'
 import TemplateUploadModal from '@/components/templates/TemplateUploadModal'
-import PlaceholdersViewModal from '@/components/templates/PlaceholdersViewModal'
+import PlaceholderLibrary from '@/components/templates/PlaceholderLibrary'
 import { useState, useEffect } from 'react'
 import DocumentGeneratorModal from '@/components/documents/DocumentGeneratorModal'
 
@@ -21,7 +21,7 @@ export default function TemplatesPage() {
   const [showEditorModal, setShowEditorModal] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
-  const [showPlaceholdersModal, setShowPlaceholdersModal] = useState(false)
+  const [showPlaceholderLibrary, setShowPlaceholderLibrary] = useState(false)
   
   useEffect(() => {
     fetchTemplates()
@@ -208,17 +208,17 @@ export default function TemplatesPage() {
 
   return (
     <div className="p-6">
-      {/* Add this after the opening div */}
+      {/* Header Actions */}
       <div className="mb-6 flex justify-between items-center">
         <div className="flex space-x-3">
           <button
-            onClick={() => setShowPlaceholdersModal(true)}
+            onClick={() => setShowPlaceholderLibrary(true)}
             className="inline-flex items-center px-4 py-2 border border-blue-300 text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            View All Placeholders
+            Browse Available Placeholders
           </button>
         </div>
         
@@ -229,7 +229,7 @@ export default function TemplatesPage() {
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Upload Template
+          Upload DOCX Template
         </button>
       </div>
       
@@ -371,7 +371,7 @@ export default function TemplatesPage() {
               <p className="mt-1 text-sm text-gray-600">
                 {searchTerm || statusFilter !== 'all' 
                   ? 'Try adjusting your search or filter criteria.' 
-                  : 'Get started by uploading your first contract template.'
+                  : 'Get started by uploading your first DOCX template.'
                 }
               </p>
               {!searchTerm && statusFilter === 'all' && (
@@ -431,7 +431,7 @@ export default function TemplatesPage() {
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
-                          {template.original_filename}
+                          {template.original_filename || 'Template.docx'}
                         </div>
                         <div className="flex items-center">
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -443,14 +443,14 @@ export default function TemplatesPage() {
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a1.994 1.994 0 01-1.414.586H7a4 4 0 01-4-4V7a4 4 0 014-4z" />
                           </svg>
-                          {template.template_type}
+                          DOCX Template
                         </div>
-                        {template.field_mappings && Object.keys(template.field_mappings).length > 0 && (
+                        {template.detected_placeholders && template.detected_placeholders.length > 0 && (
                           <div className="flex items-center">
                             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
-                            {Object.keys(template.field_mappings).length} fields mapped
+                            {template.detected_placeholders.length} placeholders
                           </div>
                         )}
                       </div>
@@ -463,9 +463,10 @@ export default function TemplatesPage() {
                         className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                       >
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        Edit
+                        Settings
                       </button>
                       
                       {template.status === 'active' && (
@@ -503,8 +504,8 @@ export default function TemplatesPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
                         </svg>
                         <div className="text-sm text-yellow-800">
-                          <p className="font-medium">Template needs field mapping</p>
-                          <p>Click Edit to map client data fields before activating this template.</p>
+                          <p className="font-medium">Template is in draft mode</p>
+                          <p>Activate this template to enable document generation.</p>
                         </div>
                       </div>
                     </div>
@@ -540,7 +541,7 @@ export default function TemplatesPage() {
             
             <p className="text-gray-600 mb-6">
               Are you sure you want to delete <span className="font-medium text-gray-900">{templateToDelete.name}</span>? 
-              This action cannot be undone and will permanently remove the template and all its field mappings.
+              This action cannot be undone and will permanently remove the template and all its data.
             </p>
             
             <div className="flex space-x-3">
@@ -579,10 +580,16 @@ export default function TemplatesPage() {
         onClose={handleCloseEditor}
       />
 
-      {/* Placeholders View Modal */}
-      <PlaceholdersViewModal
-        isOpen={showPlaceholdersModal}
-        onClose={() => setShowPlaceholdersModal(false)}
+      {/* Placeholder Library Modal */}
+      <PlaceholderLibrary
+        isOpen={showPlaceholderLibrary}
+        onClose={() => setShowPlaceholderLibrary(false)}
+        onSelectPlaceholder={(field) => {
+          // Copy placeholder to clipboard
+          navigator.clipboard.writeText(`{${field.name}}`).then(() => {
+            showSuccessMessage(`Placeholder {${field.name}} copied to clipboard!`)
+          })
+        }}
       />
     </div>
   )

@@ -4,28 +4,5 @@ Before writing any code, let me know if you fully understand the process and wha
 Do not give me the full code with the edits, only the section/function of code with the changes made. For example if a function was changed, return me the full function, or if a client side component was changed, return me the div for that component. If its a new file, give me the full code. Let me know what files to make the changes in as well.
 
 
-Phase 1: Database & API Foundation
-Phase 2: UI Components
-Phase 3: Main Client Detail Page
-Phase 4: Navigation Updates
-Phase 5: Document Management
-Phase 6: Testing & Polish
 
 
-Owner	Name
-Partner
-Company Name
-Reg Company Name
-Reg No
-Country
-Address
-Postal Code
-Phone
-Email
-Created By
-Created On
-
-Email
-Owner Name
-Country
-Phone Number

@@ -1,8 +1,8 @@
 // src/components/documents/DocumentGeneratorModal.jsx
 'use client'
-
 import { useState, useEffect } from 'react'
 import CustomFieldsForm from './CustomFieldsForm'
+import { getCustomPlaceholders, getClientPlaceholders } from '@/lib/utils/clientFields'
 
 export default function DocumentGeneratorModal({ 
   isOpen, 
@@ -12,12 +12,15 @@ export default function DocumentGeneratorModal({
   const [clients, setClients] = useState([])
   const [selectedClientId, setSelectedClientId] = useState('')
   const [customFieldValues, setCustomFieldValues] = useState({})
-  const [currentStep, setCurrentStep] = useState('clientSelection') // 'clientSelection', 'customFields', 'generating'
+  const [currentStep, setCurrentStep] = useState('clientSelection')
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
 
-  const hasCustomFields = template?.custom_fields && template.custom_fields.length > 0
+  // Get custom fields from detected placeholders
+  const customFields = template ? getCustomPlaceholders(template.detected_placeholders) : []
+  const clientFields = template ? getClientPlaceholders(template.detected_placeholders) : []
+  const hasCustomFields = customFields.length > 0
 
   useEffect(() => {
     if (isOpen) {
@@ -63,7 +66,7 @@ export default function DocumentGeneratorModal({
       setError('')
     } else if (currentStep === 'customFields') {
       // Validate custom fields
-      const requiredFields = template.custom_fields.filter(f => f.required)
+      const requiredFields = customFields.filter(f => f.required)
       const missingFields = requiredFields.filter(f => 
         !customFieldValues[f.name] || customFieldValues[f.name].toString().trim() === ''
       )
@@ -98,7 +101,7 @@ export default function DocumentGeneratorModal({
         body: JSON.stringify({
           templateId: template.id,
           clientId: selectedClientId,
-          customFieldValues: customFieldValues // Pass custom field values
+          customFieldValues: customFieldValues
         })
       })
 
@@ -107,18 +110,29 @@ export default function DocumentGeneratorModal({
         throw new Error(errorData.error || 'Failed to generate document')
       }
 
-      const result = await response.json()
+      // Handle DOCX file download
+      const blob = await response.blob()
+      const filename = response.headers.get('content-disposition')
+        ?.split('filename=')[1]
+        ?.replace(/"/g, '') || 
+        `${template.name}_${new Date().toISOString().split('T')[0]}.docx`
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
       
-      // Success - show success message or close modal
-      alert('Document generated successfully!')
-      onClose()
-      
-      // Optional: Open generated document in new tab
-      if (result.document?.generated_content) {
-        const blob = new Blob([result.document.generated_content], { type: 'text/html' })
-        const url = URL.createObjectURL(blob)
-        window.open(url, '_blank')
-      }
+      // Cleanup
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      // Success - close modal
+      setTimeout(() => {
+        onClose()
+      }, 1000) // Brief delay to show success
 
     } catch (error) {
       console.error('Error generating document:', error)
@@ -191,11 +205,33 @@ export default function DocumentGeneratorModal({
   )
 
   const renderCustomFields = () => (
-    <CustomFieldsForm
-      customFields={template.custom_fields}
-      values={customFieldValues}
-      onFieldsChange={setCustomFieldValues}
-    />
+    <div className="space-y-6">
+      {/* Client Fields Summary */}
+      {clientFields.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-blue-900 mb-2">
+            Client Data (Auto-filled from selected client)
+          </h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-blue-800">
+            {clientFields.map(field => (
+              <div key={field.name} className="flex items-center">
+                <svg className="w-3 h-3 text-blue-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                {field.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Custom Fields Form */}
+      <CustomFieldsForm
+        customFields={customFields}
+        values={customFieldValues}
+        onFieldsChange={setCustomFieldValues}
+      />
+    </div>
   )
 
   const renderGenerating = () => (
@@ -239,7 +275,7 @@ export default function DocumentGeneratorModal({
       case 'clientSelection':
         return selectedClientId !== ''
       case 'customFields':
-        const requiredFields = template.custom_fields.filter(f => f.required)
+        const requiredFields = customFields.filter(f => f.required)
         return requiredFields.every(f => 
           customFieldValues[f.name] && customFieldValues[f.name].toString().trim() !== ''
         )
@@ -334,10 +370,12 @@ export default function DocumentGeneratorModal({
             <div className="text-sm text-gray-600">
               {hasCustomFields ? (
                 currentStep === 'clientSelection' 
-                  ? `Next: Custom field values (${template.custom_fields.length} fields)`
-                  : 'All steps completed'
+                  ? `Next: Custom field values (${customFields.length} fields)`
+                  : `Client fields: ${clientFields.length} auto-filled • Custom fields: ${customFields.length}`
               ) : (
-                'Ready to generate document'
+                clientFields.length > 0 
+                  ? `${clientFields.length} client fields will be auto-filled`
+                  : 'Ready to generate document'
               )}
             </div>
             
@@ -361,11 +399,11 @@ export default function DocumentGeneratorModal({
               <button
                 onClick={handleNextStep}
                 disabled={!canProceed()}
-                className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {currentStep === 'clientSelection' && hasCustomFields ? 'Next' : 
-                 currentStep === 'customFields' ? 'Generate Document' : 
-                 'Generate Document'}
+                currentStep === 'customFields' ? 'Generate Document' : 
+                'Generate Document'}
               </button>
             </div>
           </div>

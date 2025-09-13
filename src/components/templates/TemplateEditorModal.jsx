@@ -2,7 +2,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import TemplateEditor from './TemplateEditor'
+import SimpleTemplateEditor from './SimpleTemplateEditor'
 
 export default function TemplateEditorModal({ 
   isOpen, 
@@ -76,7 +76,7 @@ export default function TemplateEditorModal({
           {/* Modal Body - Scrollable */}
           <div className="flex-1 overflow-hidden">
             {template && (
-              <TemplateEditor
+              <SimpleTemplateEditor
                 template={template}
                 onSave={async (templateData) => {
                   await onSave(templateData)

@@ -64,8 +64,8 @@ export async function PUT(request, { params }) {
     
     const supabase = await createServerSupabase()
     
-    // Only update provided fields
-    const allowedFields = ['name', 'description', 'html_content', 'field_mappings', 'status', 'template_type']
+    // Only update allowed fields for DOCX templates
+    const allowedFields = ['name', 'description', 'status']
     const filteredData = {}
     
     Object.keys(updateData).forEach(key => {

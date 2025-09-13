@@ -31,6 +31,52 @@ export default function CustomFieldsStep({
     }
   }
 
+  const validateAllFields = () => {
+    const errors = {}
+    let hasErrors = false
+
+    customFields.forEach(field => {
+      const fieldKey = field.name || field.label
+      const validation = validateField(field)
+      
+      if (validation) {
+        errors[fieldKey] = validation
+        hasErrors = true
+      }
+    })
+
+    setValidationErrors(errors)
+    return !hasErrors
+  }
+
+  const validateRequiredFields = () => {
+    const requiredFields = customFields.filter(field => field.required)
+    const errors = {}
+    let hasErrors = false
+
+    requiredFields.forEach(field => {
+      const fieldKey = field.name || field.label
+      const value = fieldValues[fieldKey]
+      const hasValue = value && (typeof value !== 'string' || value.trim())
+      
+      if (!hasValue) {
+        errors[fieldKey] = `${field.label || field.name} is required`
+        hasErrors = true
+      }
+    })
+
+    setValidationErrors(errors)
+    return !hasErrors
+  }
+
+  // Add this useEffect to validate when values change
+  useEffect(() => {
+    // Only validate if we have errors currently showing
+    if (Object.keys(validationErrors).length > 0) {
+      validateAllFields()
+    }
+  }, [fieldValues, customFields])
+
   const validateField = (field) => {
     const fieldKey = field.name || field.label
     const value = fieldValues[fieldKey]
@@ -329,26 +375,6 @@ export default function CustomFieldsStep({
               </div>
             </div>
           )}
-
-          {/* Field Summary */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex">
-              <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div className="text-sm text-blue-800">
-                <p className="font-medium mb-1">Document Placeholder Information</p>
-                <p>
-                  These fields represent placeholders in your document templates that need actual values.
-                  {requiredFields.length > 0 && (
-                    <span className="ml-1">
-                      All required placeholders must be filled before documents can be generated.
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       )}
     </div>

@@ -1,27 +1,27 @@
 // src/app/api/templates/route.js
 import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/session'
-import { DocumentProcessingService } from '@/lib/services/documentProcessingService'
 import { createServerSupabase } from '@/lib/supabase'
 
 // GET - Fetch all templates
 export async function GET(request) {
   try {
-    // Check authentication
     await requireSession()
 
-    const result = await DocumentProcessingService.getTemplates()
+    const supabase = await createServerSupabase()
+    
+    const { data, error } = await supabase
+      .from('document_templates')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 500 }
-      )
+    if (error) {
+      throw new Error(`Failed to fetch templates: ${error.message}`)
     }
 
     return NextResponse.json({
       success: true,
-      templates: result.templates
+      templates: data || []
     })
 
   } catch (error) {
