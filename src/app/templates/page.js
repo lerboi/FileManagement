@@ -22,7 +22,7 @@ export default function TemplatesPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showPlaceholderLibrary, setShowPlaceholderLibrary] = useState(false)
-  
+
   useEffect(() => {
     fetchTemplates()
   }, [])
@@ -30,14 +30,14 @@ export default function TemplatesPage() {
   const fetchTemplates = async () => {
     setLoading(true)
     setError('')
-    
+
     try {
       const response = await fetch('/api/templates')
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch templates')
       }
-      
+
       const data = await response.json()
       setTemplates(data.templates || [])
     } catch (error) {
@@ -79,15 +79,15 @@ export default function TemplatesPage() {
       }
 
       const result = await response.json()
-      
+
       // Update templates list
-      setTemplates(prev => prev.map(t => 
+      setTemplates(prev => prev.map(t =>
         t.id === result.template.id ? result.template : t
       ))
-      
+
       setShowEditorModal(false)
       setSelectedTemplate(null)
-      
+
       // Show success message
       showSuccessMessage('Template saved successfully!')
     } catch (error) {
@@ -109,7 +109,7 @@ export default function TemplatesPage() {
       setTemplates(prev => prev.filter(t => t.id !== templateId))
       setShowDeleteModal(false)
       setTemplateToDelete(null)
-      
+
       showSuccessMessage('Template deleted successfully!')
     } catch (error) {
       alert('Failed to delete template: ' + error.message)
@@ -134,12 +134,12 @@ export default function TemplatesPage() {
       }
 
       const result = await response.json()
-      
+
       // Update templates list
-      setTemplates(prev => prev.map(t => 
+      setTemplates(prev => prev.map(t =>
         t.id === templateId ? { ...t, status: newStatus } : t
       ))
-      
+
       setEditingStatus(null)
       showSuccessMessage(`Template status updated to ${newStatus}!`)
     } catch (error) {
@@ -163,7 +163,7 @@ export default function TemplatesPage() {
     successDiv.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50'
     successDiv.textContent = message
     document.body.appendChild(successDiv)
-    
+
     setTimeout(() => {
       if (document.body.contains(successDiv)) {
         document.body.removeChild(successDiv)
@@ -192,7 +192,7 @@ export default function TemplatesPage() {
   const filteredTemplates = templates
     .filter(template => {
       const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           template.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        template.description?.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesStatus = statusFilter === 'all' || template.status === statusFilter
       return matchesSearch && matchesStatus
     })
@@ -221,7 +221,7 @@ export default function TemplatesPage() {
             Browse Available Placeholders
           </button>
         </div>
-        
+
         <button
           onClick={() => setShowUploadModal(true)}
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -232,10 +232,10 @@ export default function TemplatesPage() {
           Upload DOCX Template
         </button>
       </div>
-      
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        
+
         {/* Search and Filters */}
         <div className="mb-6">
           <div className="bg-white rounded-lg shadow-sm border p-4">
@@ -257,7 +257,7 @@ export default function TemplatesPage() {
                   />
                 </div>
               </div>
-              
+
               {/* Status Filter */}
               <div className="lg:w-40">
                 <select
@@ -271,7 +271,7 @@ export default function TemplatesPage() {
                   <option value="archived">Archived</option>
                 </select>
               </div>
-              
+
               {/* Sort */}
               <div className="lg:w-40">
                 <select
@@ -304,7 +304,7 @@ export default function TemplatesPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-sm border p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -318,7 +318,7 @@ export default function TemplatesPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-sm border p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -332,7 +332,7 @@ export default function TemplatesPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-sm border p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -369,8 +369,8 @@ export default function TemplatesPage() {
               </svg>
               <h3 className="mt-2 text-lg font-medium text-gray-900">No templates found</h3>
               <p className="mt-1 text-sm text-gray-600">
-                {searchTerm || statusFilter !== 'all' 
-                  ? 'Try adjusting your search or filter criteria.' 
+                {searchTerm || statusFilter !== 'all'
+                  ? 'Try adjusting your search or filter criteria.'
                   : 'Get started by uploading your first DOCX template.'
                 }
               </p>
@@ -419,13 +419,13 @@ export default function TemplatesPage() {
                           </button>
                         )}
                       </div>
-                      
+
                       {template.description && (
                         <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                           {template.description}
                         </p>
                       )}
-                      
+
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                         <div className="flex items-center">
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -455,7 +455,7 @@ export default function TemplatesPage() {
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Action Buttons */}
                     <div className="flex items-center space-x-2 ml-6">
                       <button
@@ -468,7 +468,7 @@ export default function TemplatesPage() {
                         </svg>
                         Settings
                       </button>
-                      
+
                       {template.status === 'active' && (
                         <button
                           onClick={() => handleGenerateDocument(template)}
@@ -480,7 +480,7 @@ export default function TemplatesPage() {
                           Generate
                         </button>
                       )}
-                      
+
                       <button
                         onClick={() => {
                           setTemplateToDelete(template)
@@ -495,7 +495,7 @@ export default function TemplatesPage() {
                       </button>
                     </div>
                   </div>
-                  
+
                   {/* Status Warning */}
                   {template.status === 'draft' && (
                     <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
@@ -538,12 +538,12 @@ export default function TemplatesPage() {
               </div>
               <h3 className="text-lg font-medium text-gray-900">Delete Template</h3>
             </div>
-            
+
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete <span className="font-medium text-gray-900">{templateToDelete.name}</span>? 
+              Are you sure you want to delete <span className="font-medium text-gray-900">{templateToDelete.name}</span>?
               This action cannot be undone and will permanently remove the template and all its data.
             </p>
-            
+
             <div className="flex space-x-3">
               <button
                 onClick={() => {
@@ -574,7 +574,7 @@ export default function TemplatesPage() {
 
       {/* Template Editor Modal */}
       <TemplateEditorModal
-        isOpen={showEditorModal}  
+        isOpen={showEditorModal}
         template={selectedTemplate}
         onSave={handleSaveTemplate}
         onClose={handleCloseEditor}
@@ -585,10 +585,8 @@ export default function TemplatesPage() {
         isOpen={showPlaceholderLibrary}
         onClose={() => setShowPlaceholderLibrary(false)}
         onSelectPlaceholder={(field) => {
-          // Copy placeholder to clipboard
-          navigator.clipboard.writeText(`{${field.name}}`).then(() => {
-            showSuccessMessage(`Placeholder {${field.name}} copied to clipboard!`)
-          })
+          // Placeholder already copied in PlaceholderLibrary component
+          // This callback is optional now
         }}
       />
     </div>

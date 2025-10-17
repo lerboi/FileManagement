@@ -28,6 +28,18 @@ export default function ClientDetailPage() {
     documentType: null
   })
 
+  // Safety check - redirect if "new" somehow reaches dynamic route
+  useEffect(() => {
+    if (clientId === 'new') {
+      router.push('/clients/new')
+    }
+  }, [clientId, router])
+
+  // Early return if redirecting
+  if (clientId === 'new') {
+    return null
+  }
+
   useEffect(() => {
     if (clientId) {
       fetchClientData()
@@ -60,7 +72,7 @@ export default function ClientDetailPage() {
       // Handle tasks response
       if (tasksResponse.ok) {
         const tasksData = await tasksResponse.json()
-        
+
         setTasks({
           ongoing: tasksData.ongoingTasks || [],
           completed: tasksData.completedTasks || []
@@ -75,7 +87,7 @@ export default function ClientDetailPage() {
       // Handle documents response
       if (documentsResponse.ok) {
         const documentsData = await documentsResponse.json()
-        
+
         setDocuments(documentsData.documents || [])
       } else {
         const errorText = await documentsResponse.text()
@@ -223,20 +235,20 @@ export default function ClientDetailPage() {
           {/* Main Content Sections */}
           <div className="space-y-6">
             {/* Client Information */}
-            <ClientInfoSection 
-              client={client} 
+            <ClientInfoSection
+              client={client}
               onClientUpdate={handleClientUpdate}
             />
 
             {/* Tasks */}
-            <ClientTasksSection 
+            <ClientTasksSection
               ongoingTasks={tasks.ongoing}
               completedTasks={tasks.completed}
               onDocumentPreview={handleDocumentPreview}
             />
 
             {/* Client Documents */}
-            <ClientDocumentsSection 
+            <ClientDocumentsSection
               clientId={clientId}
               documents={documents}
               onDocumentsUpdate={handleDocumentsUpdate}
