@@ -1,6 +1,6 @@
 // src/app/clients/page.js
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([])
@@ -13,27 +13,23 @@ export default function ClientsPage() {
 
   const limit = 10 // Clients per page
 
-  useEffect(() => {
-    fetchClients()
-  }, [currentPage, searchTerm])
-
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     setLoading(true)
     setError('')
-    
+
     try {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: limit.toString(),
         search: searchTerm
       })
-      
+
       const response = await fetch(`/api/clients?${params}`)
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch clients')
       }
-      
+
       const data = await response.json()
       setClients(data.clients)
       setTotalPages(data.totalPages)
@@ -43,7 +39,11 @@ export default function ClientsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, searchTerm])
+
+  useEffect(() => {
+    fetchClients()
+  }, [])
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value)
@@ -71,7 +71,7 @@ export default function ClientsPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          
+
           {/* Search and Actions Bar */}
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1 max-w-lg">
@@ -90,7 +90,7 @@ export default function ClientsPage() {
                 />
               </div>
             </div>
-            
+
             <button
               onClick={handleCreateClient}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -194,11 +194,10 @@ export default function ClientsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            client.status === 'active' ? 'bg-green-100 text-green-800' :
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${client.status === 'active' ? 'bg-green-100 text-green-800' :
                             client.status === 'inactive' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
                             {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                           </span>
                         </td>

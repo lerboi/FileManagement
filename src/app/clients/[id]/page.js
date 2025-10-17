@@ -28,23 +28,17 @@ export default function ClientDetailPage() {
     documentType: null
   })
 
-  // Safety check - redirect if "new" somehow reaches dynamic route
   useEffect(() => {
+    // Safety check - redirect if "new" reaches this route
     if (clientId === 'new') {
       router.push('/clients/new')
+      return
     }
-  }, [clientId, router])
 
-  // Early return if redirecting
-  if (clientId === 'new') {
-    return null
-  }
-
-  useEffect(() => {
     if (clientId) {
       fetchClientData()
     }
-  }, [clientId])
+  }, [clientId, router]) // Added router to dependencies
 
   const fetchClientData = async () => {
     setLoading(true)

@@ -1,6 +1,6 @@
 // src/app/services/page.js
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import ServiceCreationModal from '@/components/services/ServiceCreationModal'
 import ServiceEditModal from '@/components/services/ServiceEditModal'
 
@@ -10,7 +10,7 @@ export default function ServicesPage() {
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [showInactive, setShowInactive] = useState(false)
-  
+
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -18,25 +18,21 @@ export default function ServicesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [serviceToDelete, setServiceToDelete] = useState(null)
 
-  useEffect(() => {
-    fetchServices()
-  }, [showInactive])
-
-  const fetchServices = async () => {
+  const fetchServices = useCallback(async () => {
     setLoading(true)
     setError('')
-    
+
     try {
       const params = new URLSearchParams({
         includeInactive: showInactive.toString()
       })
-      
+
       const response = await fetch(`/api/services?${params}`)
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch services')
       }
-      
+
       const data = await response.json()
       setServices(data.services || [])
     } catch (error) {
@@ -44,7 +40,11 @@ export default function ServicesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  })
+
+  useEffect(() => {
+    fetchServices()
+  }, [])
 
   const handleCreateService = () => {
     setShowCreateModal(true)
@@ -100,7 +100,7 @@ export default function ServicesPage() {
     successDiv.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50'
     successDiv.textContent = message
     document.body.appendChild(successDiv)
-    
+
     setTimeout(() => {
       if (document.body.contains(successDiv)) {
         document.body.removeChild(successDiv)
@@ -180,7 +180,7 @@ export default function ServicesPage() {
                 />
               </div>
             </div>
-            
+
             {/* Show Inactive Toggle */}
             <div className="flex items-center">
               <input
@@ -213,7 +213,7 @@ export default function ServicesPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -229,7 +229,7 @@ export default function ServicesPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -245,7 +245,7 @@ export default function ServicesPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -284,8 +284,8 @@ export default function ServicesPage() {
             </svg>
             <h3 className="mt-2 text-lg font-medium text-gray-900">No services found</h3>
             <p className="mt-1 text-sm text-gray-600">
-              {searchTerm 
-                ? 'Try adjusting your search terms.' 
+              {searchTerm
+                ? 'Try adjusting your search terms.'
                 : 'Get started by creating your first service bundle.'
               }
             </p>
@@ -317,13 +317,13 @@ export default function ServicesPage() {
                         {getStatusText(service)}
                       </span>
                     </div>
-                    
+
                     {service.description && (
                       <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                         {service.description}
                       </p>
                     )}
-                    
+
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                       <div className="flex items-center">
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -374,7 +374,7 @@ export default function ServicesPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Action Buttons */}
                   <div className="flex items-center space-x-2 ml-6">
                     <button
@@ -386,7 +386,7 @@ export default function ServicesPage() {
                       </svg>
                       Edit
                     </button>
-                    
+
                     <button
                       onClick={() => handleDeleteService(service)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-md"
@@ -434,12 +434,12 @@ export default function ServicesPage() {
               </div>
               <h3 className="text-lg font-medium text-gray-900">Delete Service</h3>
             </div>
-            
+
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete <span className="font-medium text-gray-900">{serviceToDelete.name}</span>? 
+              Are you sure you want to delete <span className="font-medium text-gray-900">{serviceToDelete.name}</span>?
               This action cannot be undone.
             </p>
-            
+
             <div className="flex space-x-3">
               <button
                 onClick={() => {
